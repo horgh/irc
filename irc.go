@@ -47,20 +47,14 @@ func (c *Conn) Connect() error {
 
 // init runs connection initiation (nick, etc)
 func (c *Conn) init() error {
-	_, err := c.rw.WriteString(fmt.Sprintf("NICK %s\r\n", c.Nick))
+	err := c.write(fmt.Sprintf("NICK %s\r\n", c.Nick))
 	if err != nil {
 		return fmt.Errorf("Failed to send NICK: %s", err.Error())
 	}
 
-	_, err = c.rw.WriteString(fmt.Sprintf("USER %s 0 * :%s\r\n", c.Ident,
-		c.Name))
+	err = c.write(fmt.Sprintf("USER %s 0 * :%s\r\n", c.Ident, c.Name))
 	if err != nil {
 		return fmt.Errorf("Failed to send NICK: %s", err.Error())
-	}
-
-	err = c.rw.Flush()
-	if err != nil {
-		return err
 	}
 
 	for {
@@ -104,26 +98,50 @@ func (c *Conn) Loop() error {
 				return fmt.Errorf("Unable to parse PING")
 			}
 
-			_, err = c.rw.WriteString(fmt.Sprintf("PONG %s\r\n", server))
+			err = c.write(fmt.Sprintf("PONG %s\r\n", server))
 			if err != nil {
 				return fmt.Errorf("Failed to send PONG: %s", err.Error())
 			}
-
-			err = c.rw.Flush()
-			if err != nil {
-				return err
-			}
-
 			log.Printf("Sent PONG.")
+			continue
+		}
+
+		pieces := strings.Split(line, " ")
+
+		if len(pieces) > 1 {
+			if pieces[1] == "PRIVMSG" {
+				err = c.privmsg(line, pieces)
+				if err != nil {
+					return err
+				}
+				continue
+			}
 		}
 	}
 }
 
 // Join joins a channel
 func (c *Conn) Join(name string) error {
-	_, err := c.rw.WriteString(fmt.Sprintf("JOIN %s\r\n", name))
+	return c.write(fmt.Sprintf("JOIN %s\r\n", name))
+}
+
+// privmsg fires when a PRIVMSG is seen.
+//
+// It triggers any hook functions registered for privmsg.
+func (c *Conn) privmsg(line string, pieces []string) error {
+	log.Printf("privmsg: todo")
+	return nil
+}
+
+// write writes a string to the connection
+func (c *Conn) write(s string) error {
+	sz, err := c.rw.WriteString(s)
 	if err != nil {
-		return fmt.Errorf("Failed to send JOIN: %s", err.Error())
+		return err
+	}
+
+	if sz != len(s) {
+		return fmt.Errorf("Short write")
 	}
 
 	err = c.rw.Flush()
