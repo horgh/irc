@@ -20,9 +20,10 @@ type Conn struct {
 	Port  int
 	SSL   bool
 
-	connected bool
-	conn      net.Conn
-	rw        *bufio.ReadWriter
+	connected  bool
+	conn       net.Conn
+	rw         *bufio.ReadWriter
+	actualNick string
 }
 
 // Connect attempts to initialize a connection to a server.
@@ -63,7 +64,7 @@ func (c *Conn) init() error {
 			return err
 		}
 
-		log.Printf("Read line [%s]", line)
+		log.Printf("Read line [%s]", strings.TrimSpace(line))
 
 		if !strings.HasPrefix(line, ":") {
 			continue
@@ -81,7 +82,8 @@ func (c *Conn) init() error {
 	}
 }
 
-// Loop enters a connection loop
+// Loop enters a loop. We maintain the IRC connection. Hook events
+// will fire.
 func (c *Conn) Loop() error {
 	for {
 		line, err := c.rw.ReadString('\n')
@@ -125,6 +127,16 @@ func (c *Conn) Join(name string) error {
 	return c.write(fmt.Sprintf("JOIN %s\r\n", name))
 }
 
+// Message sends a message.
+func (c *Conn) Message(target string, message string) error {
+	return c.write(fmt.Sprintf("PRIVMSG %s :%s\r\n", target, message))
+}
+
+// Quit sends a quit.
+func (c *Conn) Quit(message string) error {
+	return c.write(fmt.Sprintf("QUIT :%s\r\n", message))
+}
+
 // privmsg fires when a PRIVMSG is seen.
 //
 // It triggers any hook functions registered for privmsg.
@@ -148,6 +160,8 @@ func (c *Conn) write(s string) error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Sent: [%s]", s)
 
 	return nil
 }
