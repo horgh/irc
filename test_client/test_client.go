@@ -16,8 +16,8 @@ func main() {
 		Name:  "Evil Hamada",
 		Ident: "evilhamada",
 		Host:  "127.0.0.1",
-		Port:  6667,
-		SSL:   false,
+		Port:  7000,
+		SSL:   true,
 	}
 
 	err := conn.Connect()

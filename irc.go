@@ -6,6 +6,7 @@ package irc
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -28,17 +29,29 @@ type Conn struct {
 
 // Connect attempts to initialize a connection to a server.
 func (c *Conn) Connect() error {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port))
-	if err != nil {
-		return err
+	if c.SSL {
+		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+			&tls.Config{
+				// Typically IRC servers won't have valid certs.
+				InsecureSkipVerify: true,
+			})
+		if err != nil {
+			return err
+		}
+		c.conn = conn
+		c.connected = true
+	} else {
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port))
+		if err != nil {
+			return err
+		}
+		c.conn = conn
+		c.connected = true
 	}
-
-	c.connected = true
-	c.conn = conn
 
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 
-	err = c.init()
+	err := c.init()
 	if err != nil {
 		return err
 	}
