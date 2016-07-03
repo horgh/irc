@@ -1,5 +1,7 @@
 /*
- * Provide IRC functionality
+ * Provide IRC client functionality.
+ *
+ * I would like to be able to write bots using this package.
  */
 
 package irc
@@ -13,23 +15,43 @@ import (
 	"strings"
 )
 
+// Conn holds an IRC connection.
 type Conn struct {
-	Nick  string
-	Name  string
-	Ident string
-	Host  string
-	Port  int
-	SSL   bool
+	// Nick is the desired nickname.
+	Nick string
 
-	connected  bool
-	conn       net.Conn
-	rw         *bufio.ReadWriter
+	// Name is the realname to use.
+	Name string
+
+	// Ident is the ident portion to use.
+	Ident string
+
+	// Host is the IP/hostname of the IRC server to connect to.
+	Host string
+
+	// Port is the port of the host of the IRC server to connect to.
+	Port int
+
+	// TLS toggles whether we connect with TLS/SSL or not.
+	TLS bool
+
+	// connected: Whether currently connected or not
+	connected bool
+
+	// conn: The connection if we are actively connected.
+	conn net.Conn
+
+	// rw: Read/write handle to the connection
+	rw *bufio.ReadWriter
+
+	// actualNick: The nick we have if we are currently connected. The requested
+	// nick may not always be available.
 	actualNick string
 }
 
 // Connect attempts to initialize a connection to a server.
 func (c *Conn) Connect() error {
-	if c.SSL {
+	if c.TLS {
 		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
 			&tls.Config{
 				// Typically IRC servers won't have valid certs.
@@ -95,8 +117,9 @@ func (c *Conn) init() error {
 	}
 }
 
-// Loop enters a loop. We maintain the IRC connection. Hook events
-// will fire.
+// Loop enters a loop reading from the server.
+// We maintain the IRC connection.
+// Hook events will fire.
 func (c *Conn) Loop() error {
 	for {
 		line, err := c.rw.ReadString('\n')
@@ -106,6 +129,7 @@ func (c *Conn) Loop() error {
 
 		log.Printf("Read line [%s]", line)
 
+		// Respond to PING.
 		if strings.HasPrefix(line, "PING ") {
 			var server string
 			_, err = fmt.Sscanf(line, "PING :%s", &server)
@@ -124,6 +148,7 @@ func (c *Conn) Loop() error {
 		pieces := strings.Split(line, " ")
 
 		if len(pieces) > 1 {
+			// PRIVMSG: Fire hook
 			if pieces[1] == "PRIVMSG" {
 				err = c.privmsg(line, pieces)
 				if err != nil {
@@ -135,7 +160,7 @@ func (c *Conn) Loop() error {
 	}
 }
 
-// Join joins a channel
+// Join joins a channel.
 func (c *Conn) Join(name string) error {
 	return c.write(fmt.Sprintf("JOIN %s\r\n", name))
 }
