@@ -1,23 +1,52 @@
 /*
- * A test IRC client
+ * A simple example client using the irc package.
  */
 
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"summercat.com/irc"
 )
 
 func main() {
+	log.SetFlags(0)
+
+	nick := flag.String("nick", "", "Nickname to use. We'll use this for name and ident too.")
+	host := flag.String("host", "", "Host to connect to.")
+	port := flag.Int("port", 6667, "Port to connect to on the host.")
+	tls := flag.Bool("tls", false, "Whether to connect with TLS.")
+	channel := flag.String("channel", "", "Channel to join.")
+
+	flag.Parse()
+
+	if len(*nick) == 0 {
+		log.Printf("You must provide a nick.")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if len(*host) == 0 {
+		log.Printf("You must provide a host.")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if len(*channel) == 0 {
+		log.Printf("You must provide a channel.")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	conn := irc.Conn{
-		Nick:  "EvilHamada",
-		Name:  "Evil Hamada",
-		Ident: "evilhamada",
-		Host:  "192.168.3.2",
-		Port:  7000,
-		TLS:   true,
+		Nick:  *nick,
+		Name:  *nick,
+		Ident: *nick,
+		Host:  *host,
+		Port:  *port,
+		TLS:   *tls,
 	}
 
 	err := conn.Connect()
@@ -26,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = conn.Join("#newhell")
+	err = conn.Join(*channel)
 	if err != nil {
 		log.Printf("Join failure: %s", err.Error())
 		os.Exit(1)
