@@ -15,9 +15,9 @@ func main() {
 		Nick:  "EvilHamada",
 		Name:  "Evil Hamada",
 		Ident: "evilhamada",
-		Host:  "127.0.0.1",
+		Host:  "192.168.3.2",
 		Port:  7000,
-		SSL:   true,
+		TLS:   true,
 	}
 
 	err := conn.Connect()
@@ -26,12 +26,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = conn.Join("#test")
+	err = conn.Join("#newhell")
 	if err != nil {
 		log.Printf("Join failure: %s", err.Error())
 		os.Exit(1)
 	}
 
-	conn.Loop()
+	err = conn.Loop()
+	if err != nil {
+		log.Printf("Loop failure: %s", err)
+		os.Exit(1)
+	}
+
 	log.Printf("Done")
 }

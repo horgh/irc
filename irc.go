@@ -101,18 +101,15 @@ func (c *Conn) init() error {
 
 		log.Printf("Read line [%s]", strings.TrimSpace(line))
 
-		if !strings.HasPrefix(line, ":") {
-			continue
+		msg, err := parseMessage(line)
+		if err != nil {
+			return err
 		}
 
-		var server string
-		var code int
-		_, err = fmt.Sscanf(line, ":%s %d ", &server, &code)
-		if err == nil {
-			if code == 1 {
-				return nil
-			}
-			return fmt.Errorf("No welcome found")
+		// Look for numeric reply 1. This is RPL_WELCOME welcoming our connection.
+		if msg.Command == "001" {
+			log.Printf("Got welcome!")
+			return nil
 		}
 	}
 }
@@ -129,15 +126,13 @@ func (c *Conn) Loop() error {
 
 		log.Printf("Read line [%s]", line)
 
-		// Respond to PING.
-		if strings.HasPrefix(line, "PING ") {
-			var server string
-			_, err = fmt.Sscanf(line, "PING :%s", &server)
-			if err != nil {
-				return fmt.Errorf("Unable to parse PING")
-			}
+		msg, err := parseMessage(line)
+		if err != nil {
+			return fmt.Errorf("Failed to parse message [%s]: %s", line, err)
+		}
 
-			err = c.write(fmt.Sprintf("PONG %s\r\n", server))
+		if msg.Command == "PING" {
+			err = c.write(fmt.Sprintf("PONG %s\r\n", msg.Params[0]))
 			if err != nil {
 				return fmt.Errorf("Failed to send PONG: %s", err.Error())
 			}
@@ -145,17 +140,12 @@ func (c *Conn) Loop() error {
 			continue
 		}
 
-		pieces := strings.Split(line, " ")
-
-		if len(pieces) > 1 {
-			// PRIVMSG: Fire hook
-			if pieces[1] == "PRIVMSG" {
-				err = c.privmsg(line, pieces)
-				if err != nil {
-					return err
-				}
-				continue
+		if msg.Command == "PRIVMSG" {
+			err = c.privmsg(msg)
+			if err != nil {
+				return err
 			}
+			continue
 		}
 	}
 }
@@ -178,7 +168,7 @@ func (c *Conn) Quit(message string) error {
 // privmsg fires when a PRIVMSG is seen.
 //
 // It triggers any hook functions registered for privmsg.
-func (c *Conn) privmsg(line string, pieces []string) error {
+func (c *Conn) privmsg(message Message) error {
 	log.Printf("privmsg: todo")
 	return nil
 }
