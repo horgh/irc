@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 )
 
 // Conn holds an IRC connection.
@@ -49,10 +50,18 @@ type Conn struct {
 	actualNick string
 }
 
+// timeoutTime is how long we wait on network I/O.
+const timeoutTime = 5 * time.Minute
+
+// timeoutConnect is how long we wait for connection attempts to time out.
+const timeoutConnect = 30 * time.Second
+
 // Connect attempts to initialize a connection to a server.
 func (c *Conn) Connect() error {
 	if c.TLS {
-		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+		dialer := &net.Dialer{Timeout: timeoutConnect}
+		conn, err := tls.DialWithDialer(dialer, "tcp",
+			fmt.Sprintf("%s:%d", c.Host, c.Port),
 			&tls.Config{
 				// Typically IRC servers won't have valid certs.
 				InsecureSkipVerify: true,
@@ -63,7 +72,8 @@ func (c *Conn) Connect() error {
 		c.conn = conn
 		c.connected = true
 	} else {
-		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port))
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+			timeoutConnect)
 		if err != nil {
 			return err
 		}
@@ -94,16 +104,19 @@ func (c *Conn) init() error {
 	}
 
 	for {
-		line, err := c.rw.ReadString('\n')
+		line, err := c.read()
 		if err != nil {
 			return err
 		}
 
-		log.Printf("Read line [%s]", strings.TrimSpace(line))
-
 		msg, err := parseMessage(line)
 		if err != nil {
 			return err
+		}
+
+		// Ignore
+		if msg.Command == "NOTICE" {
+			continue
 		}
 
 		// Look for numeric reply 1. This is RPL_WELCOME welcoming our connection.
@@ -119,12 +132,10 @@ func (c *Conn) init() error {
 // Hook events will fire.
 func (c *Conn) Loop() error {
 	for {
-		line, err := c.rw.ReadString('\n')
+		line, err := c.read()
 		if err != nil {
 			return err
 		}
-
-		log.Printf("Read line [%s]", line)
 
 		msg, err := parseMessage(line)
 		if err != nil {
@@ -173,11 +184,33 @@ func (c *Conn) privmsg(message Message) error {
 	return nil
 }
 
+// read reads a message from the connection.
+func (c *Conn) read() (string, error) {
+	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
+	if err != nil {
+		return "", fmt.Errorf("Unable to set deadline: %s", err)
+	}
+
+	line, err := c.rw.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("Unable to read: %s", err)
+	}
+
+	log.Printf("Read: %s", strings.TrimSpace(line))
+
+	return line, nil
+}
+
 // write writes a string to the connection
 func (c *Conn) write(s string) error {
+	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
+	if err != nil {
+		return fmt.Errorf("Unable to set deadline: %s", err)
+	}
+
 	sz, err := c.rw.WriteString(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to write: %s", err)
 	}
 
 	if sz != len(s) {
@@ -186,10 +219,10 @@ func (c *Conn) write(s string) error {
 
 	err = c.rw.Flush()
 	if err != nil {
-		return err
+		return fmt.Errorf("Flush error: %s", err)
 	}
 
-	log.Printf("Sent: [%s]", s)
+	log.Printf("Sent: %s", strings.TrimSpace(s))
 
 	return nil
 }
