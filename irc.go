@@ -56,7 +56,9 @@ const timeoutTime = 5 * time.Minute
 // timeoutConnect is how long we wait for connection attempts to time out.
 const timeoutConnect = 30 * time.Second
 
-// Connect attempts to initialize a connection to a server.
+var Hooks []func(*Conn, Message)
+
+// Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
 	if c.TLS {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
@@ -66,24 +68,28 @@ func (c *Conn) Connect() error {
 				// Typically IRC servers won't have valid certs.
 				InsecureSkipVerify: true,
 			})
+
 		if err != nil {
 			return err
 		}
+
 		c.conn = conn
 		c.connected = true
 	} else {
 		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
 			timeoutConnect)
+
 		if err != nil {
 			return err
 		}
+
 		c.conn = conn
 		c.connected = true
 	}
 
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 
-	err := c.init()
+	err := c.greet()
 	if err != nil {
 		return err
 	}
@@ -91,8 +97,8 @@ func (c *Conn) Connect() error {
 	return nil
 }
 
-// init runs connection initiation (nick, etc)
-func (c *Conn) init() error {
+// greet runs connection initiation (NICK, USER)
+func (c *Conn) greet() error {
 	err := c.write(fmt.Sprintf("NICK %s\r\n", c.Nick))
 	if err != nil {
 		return fmt.Errorf("Failed to send NICK: %s", err.Error())
@@ -128,10 +134,20 @@ func (c *Conn) init() error {
 }
 
 // Loop enters a loop reading from the server.
+//
 // We maintain the IRC connection.
+//
 // Hook events will fire.
 func (c *Conn) Loop() error {
 	for {
+		if !c.connected {
+			err := c.Connect()
+			return err
+			if err != nil {
+				return err
+			}
+		}
+
 		line, err := c.read()
 		if err != nil {
 			return err
@@ -139,7 +155,7 @@ func (c *Conn) Loop() error {
 
 		msg, err := parseMessage(line)
 		if err != nil {
-			return fmt.Errorf("Failed to parse message [%s]: %s", line, err)
+			return err
 		}
 
 		if msg.Command == "PING" {
@@ -148,16 +164,16 @@ func (c *Conn) Loop() error {
 				return fmt.Errorf("Failed to send PONG: %s", err.Error())
 			}
 			log.Printf("Sent PONG.")
-			continue
 		}
 
-		if msg.Command == "PRIVMSG" {
-			err = c.privmsg(msg)
-			if err != nil {
-				return err
-			}
-			continue
-		}
+		c.hooks(msg)
+	}
+}
+
+// hooks calls each registered IRC package hook.
+func (c *Conn) hooks(message Message) {
+	for _, hook := range Hooks {
+		hook(c, message)
 	}
 }
 
@@ -167,21 +183,37 @@ func (c *Conn) Join(name string) error {
 }
 
 // Message sends a message.
+//
+// If the message is too long for a single line, then it will be split over
+// several lines.
 func (c *Conn) Message(target string, message string) error {
-	return c.write(fmt.Sprintf("PRIVMSG %s :%s\r\n", target, message))
+
+	// 512 is the maximum IRC protocol length.
+	maxMessage := 512
+
+	// Number of overhead bytes.
+	overhead := len("PRIVMSG ") + len(" :") + len("\r\n")
+
+	for i := 0; i < len(message); i += maxMessage - overhead {
+		endIndex := i + maxMessage - overhead
+		if endIndex > len(message) {
+			endIndex = len(message)
+		}
+		piece := message[i:endIndex]
+
+		command := fmt.Sprintf("PRIVMSG %s :%s\r\n", target, piece)
+		err := c.write(command)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 // Quit sends a quit.
 func (c *Conn) Quit(message string) error {
 	return c.write(fmt.Sprintf("QUIT :%s\r\n", message))
-}
-
-// privmsg fires when a PRIVMSG is seen.
-//
-// It triggers any hook functions registered for privmsg.
-func (c *Conn) privmsg(message Message) error {
-	log.Printf("privmsg: todo")
-	return nil
 }
 
 // read reads a message from the connection.

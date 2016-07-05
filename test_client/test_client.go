@@ -8,7 +8,9 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 	"summercat.com/irc"
+	_ "summercat.com/irc/duckduckgo"
 )
 
 func main() {
@@ -18,7 +20,7 @@ func main() {
 	host := flag.String("host", "", "Host to connect to.")
 	port := flag.Int("port", 6667, "Port to connect to on the host.")
 	tls := flag.Bool("tls", false, "Whether to connect with TLS.")
-	channel := flag.String("channel", "", "Channel to join.")
+	channel := flag.String("channel", "", "Channel to join. For multiple, separate them by commas.")
 
 	flag.Parse()
 
@@ -55,10 +57,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = conn.Join(*channel)
-	if err != nil {
-		log.Printf("Join failure: %s", err.Error())
-		os.Exit(1)
+	channels := strings.Split(*channel, ",")
+	for _, c := range channels {
+		c = strings.TrimSpace(c)
+		if len(c) == 0 {
+			continue
+		}
+
+		err = conn.Join(c)
+		if err != nil {
+			log.Printf("Join failure: %s", err.Error())
+			os.Exit(1)
+		}
 	}
 
 	err = conn.Loop()
