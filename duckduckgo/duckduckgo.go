@@ -6,6 +6,7 @@ package duckduckgo
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/net/html"
 	"io/ioutil"
@@ -25,9 +26,25 @@ type SearchResult struct {
 	Text string
 }
 
+// RelatedTopic holds an instant answer API related topic answer.
+type RelatedTopic struct {
+	Text string
+}
+
+// Answer holds an instant answer API result.
+type Answer struct {
+	Heading       string
+	AbstractText  string
+	Type          string
+	Answer        string
+	AnswerType    string
+	RelatedTopics []RelatedTopic
+}
+
 // Regular expressions to match on !triggers
 var ddgTriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:ddg|d|g|google)(\\s+.*|$)")
 var ddg1TriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:ddg1|d1|g1)(\\s+.*|$)")
+var duckTriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:duck)(\\s+.*|$)")
 
 // The user agent to send.
 var userAgent = "Lynx/2.8.8dev.2 libwww-FM/2.14 SSL-MM/1.4.1"
@@ -65,6 +82,11 @@ func Hook(conn *irc.Conn, message irc.Message) {
 		hookDDG1(conn, message.Params[0], matches[1])
 		return
 	}
+
+	matches = duckTriggerRe.FindStringSubmatch(message.Params[1])
+	if matches != nil {
+		hookDuck(conn, message.Params[0], matches[1])
+	}
 }
 
 // hookDDG handles !ddg
@@ -87,6 +109,123 @@ func hookDDG1(conn *irc.Conn, target string, args string) {
 	}
 
 	search(conn, target, query, 1)
+}
+
+// hookDuck handles !duck
+//
+// We look up an instant answer and respond to the target.
+func hookDuck(conn *irc.Conn, target string, args string) {
+	query := strings.TrimSpace(args)
+	if len(query) == 0 {
+		conn.Message(target, "Usage: !duck <query>")
+		return
+	}
+
+	answer, err := getInstantAnswer(query)
+	if err != nil {
+		conn.Message(target, fmt.Sprintf("Failure: %s", err))
+		return
+	}
+
+	if answer.Type == "A" {
+		response := ""
+		if len(answer.Heading) > 0 {
+			response += answer.Heading
+		}
+
+		if len(answer.AbstractText) > 0 {
+			if len(response) > 0 {
+				response += " "
+			}
+			response += answer.AbstractText
+		}
+
+		if len(response) == 0 {
+			conn.Message(target, "I didn't find an answer. Sorry.")
+			return
+		}
+
+		conn.Message(target, response)
+		return
+	}
+
+	if answer.Type == "D" {
+		if len(answer.RelatedTopics) > 0 && len(answer.RelatedTopics[0].Text) > 0 {
+			conn.Message(target,
+				fmt.Sprintf("No exact result found. Did you mean: %s",
+					answer.RelatedTopics[0].Text))
+			return
+		}
+		conn.Message(target, "No exact result found.")
+		return
+	}
+
+	conn.Message(target, "I don't understand the answer. Help!")
+	log.Printf("I found: %v", answer)
+}
+
+// getInstantAnswer queries the DuckDuckGo instant answer API.
+// See https://duckduckgo.com/api
+//
+// Interesting keys:
+//
+// For topic summaries:
+//
+// AbstractText: Topic summary with no HTML
+// Heading:
+
+// For instant answers:
+//
+// Answer
+// AnswerType
+
+// For definitions
+//
+// Definition
+func getInstantAnswer(query string) (Answer, error) {
+	// I want to set headers, so I need to build and make the request this
+	// way.
+
+	values := url.Values{}
+	values.Set("q", query)
+	values.Set("format", "json")
+	values.Set("pretty", "1")
+	values.Set("no_redirect", "1")
+	values.Set("no_html", "1")
+	values.Set("t", "github.com/horgh/irc/duckduckgo")
+
+	apiURL := "https://api.duckduckgo.com/?" + values.Encode()
+
+	request, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return Answer{}, fmt.Errorf("Preparing request: %s")
+	}
+
+	request.Header.Set("User-Agent", userAgent)
+
+	client := http.Client{Timeout: timeout}
+
+	log.Printf("Making request... [%s]", query)
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return Answer{}, fmt.Errorf("HTTP failure: %s", err)
+	}
+
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Answer{}, fmt.Errorf("Read failure: %s", err)
+	}
+
+	answer := Answer{}
+	err = json.Unmarshal(body, &answer)
+	if err != nil {
+		return Answer{}, fmt.Errorf("Unable to decode: %s", err)
+	}
+
+	return answer, nil
 }
 
 // search looks up search results and outputs them to the target.
