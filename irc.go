@@ -189,7 +189,9 @@ func (c *Conn) Join(name string) error {
 func (c *Conn) Message(target string, message string) error {
 
 	// 512 is the maximum IRC protocol length.
-	maxMessage := 512
+	// However, user and host takes up some of that. Let's cut down a bit.
+	// This is arbitrary.
+	maxMessage := 412
 
 	// Number of overhead bytes.
 	overhead := len("PRIVMSG ") + len(" :") + len("\r\n")
