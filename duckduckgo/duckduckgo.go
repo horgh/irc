@@ -38,7 +38,11 @@ type Answer struct {
 	Type          string
 	Answer        string
 	AnswerType    string
+	Redirect      string
 	RelatedTopics []RelatedTopic
+
+	// APIURL is not part of the response but it's nice to have on hand.
+	APIURL string
 }
 
 // Regular expressions to match on !triggers
@@ -127,41 +131,68 @@ func hookDuck(conn *irc.Conn, target string, args string) {
 		return
 	}
 
+	// Topic summary (type A)
 	if answer.Type == "A" {
-		response := ""
-		if len(answer.Heading) > 0 {
-			response += answer.Heading
-		}
-
-		if len(answer.AbstractText) > 0 {
-			if len(response) > 0 {
-				response += " "
-			}
-			response += answer.AbstractText
-		}
-
-		if len(response) == 0 {
-			conn.Message(target, "I didn't find an answer. Sorry.")
+		if len(answer.AbstractText) == 0 {
+			conn.Message(target, fmt.Sprintf("Missing summary! (%s)", answer.APIURL))
 			return
 		}
 
-		conn.Message(target, response)
+		conn.Message(target, answer.AbstractText)
 		return
 	}
 
+	// Disambiguation (type D)
 	if answer.Type == "D" {
 		if len(answer.RelatedTopics) > 0 && len(answer.RelatedTopics[0].Text) > 0 {
-			conn.Message(target,
-				fmt.Sprintf("No exact result found. Did you mean: %s",
-					answer.RelatedTopics[0].Text))
+			conn.Message(target, fmt.Sprintf("Did you mean: %s",
+				answer.RelatedTopics[0].Text))
 			return
 		}
-		conn.Message(target, "No exact result found.")
+
+		conn.Message(target, fmt.Sprintf("No exact result found. (%s).",
+			answer.APIURL))
 		return
 	}
 
-	conn.Message(target, "I don't understand the answer. Help!")
-	log.Printf("I found: %v", answer)
+	// Category (Type C). Lists related. e.g. list of Simpsons characters.
+	if answer.Type == "C" {
+		if len(answer.RelatedTopics) > 0 && len(answer.RelatedTopics[0].Text) > 0 {
+			conn.Message(target, fmt.Sprintf("First result: %s",
+				answer.RelatedTopics[0].Text))
+			return
+		}
+		conn.Message(target, fmt.Sprintf("No category found (%s).", answer.APIURL))
+		return
+
+	}
+
+	// Exclusive (Type E). Exclusive. e.g., !bang
+	if answer.Type == "E" {
+		if len(answer.Redirect) > 0 {
+			conn.Message(target, fmt.Sprintf("Found: %s", answer.Redirect))
+			return
+		}
+
+		conn.Message(target, fmt.Sprintf("Exclusive match, but no redirect. (%s)",
+			answer.APIURL))
+		return
+	}
+
+	// Name (type N). Name.
+	if answer.Type == "N" {
+		conn.Message(target,
+			fmt.Sprintf("Name result found but not supported (%s)", answer.APIURL))
+		return
+	}
+
+	if answer.Type == "" {
+		conn.Message(target, fmt.Sprintf("No results. (%s)", answer.APIURL))
+		return
+	}
+
+	conn.Message(target, fmt.Sprintf("Unknown answer type (%s). (%s)",
+		answer.Type, answer.APIURL))
 }
 
 // getInstantAnswer queries the DuckDuckGo instant answer API.
@@ -224,6 +255,8 @@ func getInstantAnswer(query string) (Answer, error) {
 	if err != nil {
 		return Answer{}, fmt.Errorf("Unable to decode: %s", err)
 	}
+
+	answer.APIURL = apiURL
 
 	return answer, nil
 }
