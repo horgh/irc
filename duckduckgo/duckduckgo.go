@@ -68,7 +68,6 @@ func init() {
 }
 
 // Hook fires when an IRC message of some kind occurs.
-// We should take config too (when that exists).
 // This can let us know whether to do anything or not.
 func Hook(conn *irc.Conn, message irc.Message) {
 	if message.Command != "PRIVMSG" {

@@ -36,6 +36,9 @@ type Conn struct {
 	// TLS toggles whether we connect with TLS/SSL or not.
 	TLS bool
 
+	// Config holds the parsed config file data.
+	Config Config
+
 	// connected: Whether currently connected or not
 	connected bool
 
@@ -57,6 +60,22 @@ const timeoutTime = 5 * time.Minute
 const timeoutConnect = 30 * time.Second
 
 var Hooks []func(*Conn, Message)
+
+// LoadConfig allows you to load a config file.
+//
+// Format:
+// key=value
+//
+// # type comments permitted.
+func (c *Conn) LoadConfig(file string) error {
+	config, err := parseConfig(file)
+	if err != nil {
+		return err
+	}
+
+	c.Config = config
+	return nil
+}
 
 // Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
@@ -120,14 +139,10 @@ func (c *Conn) greet() error {
 			return err
 		}
 
-		// Ignore
-		if msg.Command == "NOTICE" {
-			continue
-		}
+		c.hooks(msg)
 
 		// Look for numeric reply 1. This is RPL_WELCOME welcoming our connection.
 		if msg.Command == "001" {
-			log.Printf("Got welcome!")
 			return nil
 		}
 	}
@@ -216,6 +231,11 @@ func (c *Conn) Message(target string, message string) error {
 // Quit sends a quit.
 func (c *Conn) Quit(message string) error {
 	return c.write(fmt.Sprintf("QUIT :%s\r\n", message))
+}
+
+// Oper sends an OPER command
+func (c *Conn) Oper(name string, password string) error {
+	return c.write(fmt.Sprintf("OPER %s %s\r\n", name, password))
 }
 
 // read reads a message from the connection.

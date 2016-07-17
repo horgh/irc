@@ -11,6 +11,7 @@ import (
 	"strings"
 	"summercat.com/irc"
 	_ "summercat.com/irc/duckduckgo"
+	_ "summercat.com/irc/oper"
 )
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 	port := flag.Int("port", 6667, "Port to connect to on the host.")
 	tls := flag.Bool("tls", false, "Whether to connect with TLS.")
 	channel := flag.String("channel", "", "Channel to join. For multiple, separate them by commas.")
+	config := flag.String("config", "", "Config file to load. Optional.")
 
 	flag.Parse()
 
@@ -49,6 +51,13 @@ func main() {
 		Host:  *host,
 		Port:  *port,
 		TLS:   *tls,
+	}
+
+	if len(*config) > 0 {
+		err := conn.LoadConfig(*config)
+		if err != nil {
+			log.Fatalf("Unable to load config: %s: %s", *config, err)
+		}
 	}
 
 	err := conn.Connect()
