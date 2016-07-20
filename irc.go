@@ -48,9 +48,9 @@ type Conn struct {
 	// rw: Read/write handle to the connection
 	rw *bufio.ReadWriter
 
-	// actualNick: The nick we have if we are currently connected. The requested
+	// ActualNick: The nick we have if we are currently connected. The requested
 	// nick may not always be available.
-	actualNick string
+	ActualNick string
 }
 
 // timeoutTime is how long we wait on network I/O.
@@ -143,6 +143,7 @@ func (c *Conn) greet() error {
 
 		// Look for numeric reply 1. This is RPL_WELCOME welcoming our connection.
 		if msg.Command == "001" {
+			c.ActualNick = c.Nick
 			return nil
 		}
 	}
@@ -236,6 +237,11 @@ func (c *Conn) Quit(message string) error {
 // Oper sends an OPER command
 func (c *Conn) Oper(name string, password string) error {
 	return c.write(fmt.Sprintf("OPER %s %s\r\n", name, password))
+}
+
+// UserMode sends a MODE command.
+func (c *Conn) UserMode(nick string, modes string) error {
+	return c.write(fmt.Sprintf("MODE %s %s\r\n", nick, modes))
 }
 
 // read reads a message from the connection.
