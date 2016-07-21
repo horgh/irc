@@ -12,6 +12,7 @@ import (
 	"summercat.com/irc"
 	_ "summercat.com/irc/duckduckgo"
 	_ "summercat.com/irc/oper"
+	_ "summercat.com/irc/record_connecting_ips"
 )
 
 func main() {
