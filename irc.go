@@ -159,9 +159,6 @@ func (c *Conn) Loop() error {
 		if !c.connected {
 			err := c.Connect()
 			return err
-			if err != nil {
-				return err
-			}
 		}
 
 		line, err := c.read()

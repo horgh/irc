@@ -228,7 +228,7 @@ func getInstantAnswer(query string) (Answer, error) {
 
 	request, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return Answer{}, fmt.Errorf("Preparing request: %s")
+		return Answer{}, fmt.Errorf("Preparing request: %s", err)
 	}
 
 	request.Header.Set("User-Agent", userAgent)
@@ -313,7 +313,7 @@ func getRawSearchResults(query string) ([]byte, error) {
 	request, err := http.NewRequest("POST", "https://duckduckgo.com/lite/",
 		strings.NewReader(values.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("Preparing request: %s")
+		return nil, fmt.Errorf("Preparing request: %s", err)
 	}
 
 	request.Header.Set("User-Agent", userAgent)
