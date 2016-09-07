@@ -59,6 +59,8 @@ const timeoutTime = 5 * time.Minute
 // timeoutConnect is how long we wait for connection attempts to time out.
 const timeoutConnect = 30 * time.Second
 
+// Hooks are functions to call for each message. Packages can take actions
+// this way.
 var Hooks []func(*Conn, Message)
 
 // LoadConfig allows you to load a config file.
@@ -253,7 +255,7 @@ func (c *Conn) read() (string, error) {
 		return "", fmt.Errorf("Unable to read: %s", err)
 	}
 
-	log.Printf("Read: %s", strings.TrimSpace(line))
+	log.Printf("Read: %s", strings.TrimRight(line, "\r\n"))
 
 	return line, nil
 }

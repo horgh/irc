@@ -81,6 +81,9 @@ func TestParseMessage(t *testing.T) {
 
 		// Fail because inside :
 		{":irc 000 hi:hi :no no", "", "", []string{}, true},
+
+		// Fails but should not. Trailing whitespace.
+		{":irc MODE #test +o user  ", "irc", "MODE", []string{"+o", "user"}, false},
 	}
 
 	for _, test := range tests {
@@ -105,7 +108,7 @@ func TestParseMessage(t *testing.T) {
 		}
 
 		if !paramsEqual(msg.Params, test.params) {
-			t.Errorf("parseMessage(%q) got params %v, wanted %v", test.input,
+			t.Errorf("parseMessage(%q) got params %q, wanted %q", test.input,
 				msg.Params, test.params)
 			continue
 		}

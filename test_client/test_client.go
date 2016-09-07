@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+
 	"summercat.com/irc"
 	_ "summercat.com/irc/duckduckgo"
 	_ "summercat.com/irc/oper"

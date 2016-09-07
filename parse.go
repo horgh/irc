@@ -182,6 +182,9 @@ func parseCommand(line string, index int) (string, int, error) {
 // We return each param (stripped of : in the case of 'trailing') and the
 // index after the params end.
 //
+// Note there may be blank parameters in some cases. Specifically since
+// trailing accepts 0 length as valid.
+//
 // Relevant parts of ABNF from RFC 2812 section 2.3.1:
 // message    =  [ ":" prefix SPACE ] command [ params ] crlf
 // params     =  *14( SPACE middle ) [ SPACE ":" trailing ]
@@ -302,6 +305,8 @@ func parseParamLast(line string, index int) (string, int, error) {
 
 	newIndex++
 
+	// If we're at the end of the string, then something is wrong. While the
+	// parameter may be blank, there should at least be CRLF remaining.
 	if newIndex == len(line) {
 		return "", -1, fmt.Errorf("Malformed param. Space ends message.")
 	}
