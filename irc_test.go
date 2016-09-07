@@ -79,11 +79,17 @@ func TestParseMessage(t *testing.T) {
 		{":irc 000 hi :there yes\r\n", "irc", "000", []string{"hi", "there yes"},
 			false},
 
-		// Fail because inside :
-		{":irc 000 hi:hi :no no", "", "", []string{}, true},
+		// : inside a middle parameter. This is valid.
+		{":irc 000 hi:hi :no no\r\n", "irc", "000", []string{"hi:hi", "no no"},
+			false},
 
-		// Fails but should not. Trailing whitespace.
-		{":irc MODE #test +o user  ", "irc", "MODE", []string{"+o", "user"}, false},
+		{":irc 000 hi:hi :no no :yes yes\r\n", "irc", "000", []string{"hi:hi", "no no :yes yes"},
+			false},
+
+		// Fails and SHOULD actually. Trailing whitespace is not valid here.
+		// Ratbox currently does send messages like this however.
+		{":irc MODE #test +o user  \r\n", "irc", "MODE", []string{"+o", "user"},
+			true},
 	}
 
 	for _, test := range tests {
@@ -92,6 +98,11 @@ func TestParseMessage(t *testing.T) {
 			if test.fail != true {
 				t.Errorf("parseMessage(%q) = %s", test.input, err)
 			}
+			continue
+		}
+
+		if test.fail {
+			t.Errorf("parseMessage(%q) should have failed, but did not.", test.input)
 			continue
 		}
 
@@ -139,6 +150,11 @@ func TestParsePrefix(t *testing.T) {
 			continue
 		}
 
+		if test.index == -1 {
+			t.Errorf("parsePrefix(%q) should have failed, but did not", test.input)
+			continue
+		}
+
 		if prefix != test.prefix {
 			t.Errorf("parsePrefix(%q) = %v, want %v", test.input, prefix,
 				test.prefix)
@@ -176,6 +192,11 @@ func TestParseCommand(t *testing.T) {
 			if test.newIndex != -1 {
 				t.Errorf("parseCommand(%q) = error %s", test.input, err.Error())
 			}
+			continue
+		}
+
+		if test.newIndex == -1 {
+			t.Errorf("parseCommand(%q) should have failed, but did not", test.input)
 			continue
 		}
 
@@ -245,6 +266,10 @@ func TestParseParams(t *testing.T) {
 				t.Errorf("parseParams(%q) = %v, want %v", test.input, err, test.params)
 			}
 			continue
+		}
+
+		if test.newIndex == -1 {
+			t.Errorf("parseParams(%q) should have failed, but did not", test.input)
 		}
 
 		if !paramsEqual(params, test.params) {
