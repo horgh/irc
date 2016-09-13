@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/html"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,8 +15,11 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"summercat.com/irc"
 	"time"
+
+	"golang.org/x/net/html"
+	"summercat.com/irc"
+	"summercat.com/irc/client"
 )
 
 // SearchResult holds a single parsed out search result.
@@ -64,12 +66,12 @@ var debugFile = "/tmp/ddg.out"
 
 // init registers us to receive IRC messages.
 func init() {
-	irc.Hooks = append(irc.Hooks, Hook)
+	client.Hooks = append(client.Hooks, Hook)
 }
 
 // Hook fires when an IRC message of some kind occurs.
 // This can let us know whether to do anything or not.
-func Hook(conn *irc.Conn, message irc.Message) {
+func Hook(conn *client.Conn, message irc.Message) {
 	if message.Command != "PRIVMSG" {
 		return
 	}
@@ -93,7 +95,7 @@ func Hook(conn *irc.Conn, message irc.Message) {
 }
 
 // hookDDG handles !ddg
-func hookDDG(conn *irc.Conn, target string, args string) {
+func hookDDG(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
 		conn.Message(target, "Usage: !ddg <query>")
@@ -104,7 +106,7 @@ func hookDDG(conn *irc.Conn, target string, args string) {
 }
 
 // hookDDG handles !ddg1
-func hookDDG1(conn *irc.Conn, target string, args string) {
+func hookDDG1(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
 		conn.Message(target, "Usage: !ddg1 <query>")
@@ -117,7 +119,7 @@ func hookDDG1(conn *irc.Conn, target string, args string) {
 // hookDuck handles !duck
 //
 // We look up an instant answer and respond to the target.
-func hookDuck(conn *irc.Conn, target string, args string) {
+func hookDuck(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
 		conn.Message(target, "Usage: !duck <query>")
@@ -261,7 +263,7 @@ func getInstantAnswer(query string) (Answer, error) {
 }
 
 // search looks up search results and outputs them to the target.
-func search(conn *irc.Conn, target string, query string, result int) {
+func search(conn *client.Conn, target string, query string, result int) {
 	body, err := getRawSearchResults(query)
 	if err != nil {
 		conn.Message(target, fmt.Sprintf("Query failure: %s", err))

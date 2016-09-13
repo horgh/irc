@@ -16,12 +16,12 @@ type Message struct {
 	Params []string
 }
 
-// parseMessage parses a message from the server.
+// ParseMessage parses a message from the server.
 //
 // See RFC 2812 Section 2.3.1.
 //
 // line ends with \n.
-func parseMessage(line string) (Message, error) {
+func ParseMessage(line string) (Message, error) {
 	message := Message{}
 	index := 0
 

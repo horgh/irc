@@ -6,16 +6,18 @@ package oper
 
 import (
 	"log"
+
 	"summercat.com/irc"
+	"summercat.com/irc/client"
 )
 
 func init() {
-	irc.Hooks = append(irc.Hooks, Hook)
+	client.Hooks = append(client.Hooks, Hook)
 }
 
 // Hook fires when an IRC message of some kind occurs.
 // This can let us know whether to do anything or not.
-func Hook(conn *irc.Conn, message irc.Message) {
+func Hook(conn *client.Conn, message irc.Message) {
 	// RPL_WELCOME, Welcome
 	if message.Command == "001" {
 		// Try to oper if we have both an oper name and password.
@@ -52,7 +54,7 @@ func Hook(conn *irc.Conn, message irc.Message) {
 }
 
 // sendUmode sends the oper umodes with the MODE command.
-func sendUmode(conn *irc.Conn) error {
+func sendUmode(conn *client.Conn) error {
 	operUmodes, exists := conn.Config["oper-umodes"]
 	if !exists {
 		return nil

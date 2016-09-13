@@ -1,5 +1,6 @@
 /*
- * Watch for user connection notices (as operator).
+ * Package recordips makes a client watch for user connection notices (as
+ * operator).
  *
  * Record each IP to a file (if it is not present), along with the nick and
  * date.
@@ -7,7 +8,7 @@
  * My use case is to add connecting IPs to a firewall rule.
  */
 
-package record_connecting_ips
+package recordips
 
 import (
 	"bufio"
@@ -15,12 +16,14 @@ import (
 	"log"
 	"os"
 	"strings"
-	"summercat.com/irc"
 	"time"
+
+	"summercat.com/irc"
+	"summercat.com/irc/client"
 )
 
 func init() {
-	irc.Hooks = append(irc.Hooks, Hook)
+	client.Hooks = append(client.Hooks, Hook)
 }
 
 // Hook fires when an IRC message of some kind occurs.
@@ -28,7 +31,7 @@ func init() {
 // The notices look like:
 // :irc.example.com NOTICE * :*** Notice -- CLICONN will will example.com 192.168.1.2 opers will 192.168.1.2 0 will
 // Note this is likely ircd-ratbox specific.
-func Hook(conn *irc.Conn, message irc.Message) {
+func Hook(conn *client.Conn, message irc.Message) {
 	if message.Command != "NOTICE" {
 		return
 	}

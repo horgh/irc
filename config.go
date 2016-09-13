@@ -11,7 +11,13 @@ import (
 // Config holds data from a config file.
 type Config map[string]string
 
-func parseConfig(file string) (Config, error) {
+// LoadConfig reads and parses a config file.
+//
+// Format:
+// key=value
+//
+// # type comments permitted.
+func LoadConfig(file string) (Config, error) {
 	fh, err := os.Open(file)
 	if err != nil {
 		return Config{}, fmt.Errorf("Unable to open: %s: %s", file, err)

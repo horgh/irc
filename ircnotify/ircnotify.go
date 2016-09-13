@@ -9,8 +9,8 @@ import (
 	"flag"
 	"log"
 	"os"
-	"summercat.com/irc"
-	"time"
+
+	"summercat.com/irc/client"
 )
 
 func main() {
@@ -45,13 +45,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn := irc.Conn{
+	conn := client.Conn{
 		Nick:  *nick,
 		Name:  *nick,
 		Ident: *nick,
 		Host:  *host,
 		Port:  6667,
-		SSL:   false,
+		TLS:   false,
 	}
 
 	err := conn.Connect()
@@ -77,9 +77,12 @@ func main() {
 		log.Printf("Quit failure: %s", err.Error())
 		os.Exit(1)
 	}
-	conn.Loop()
+	err = conn.Loop()
 
-	time.Sleep(5 * time.Second)
+	if err != nil {
+		log.Printf("Loop reported failure: %s", err)
+		os.Exit(1)
+	}
 
 	log.Printf("Done!")
 }
