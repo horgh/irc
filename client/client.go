@@ -5,7 +5,6 @@
 package client
 
 import (
-	"bufio"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -60,9 +59,12 @@ var Hooks []func(*Conn, irc.Message)
 
 // Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
+	var conn net.Conn
+	var err error
+
 	if c.TLS {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
-		conn, err := tls.DialWithDialer(dialer, "tcp",
+		conn, err = tls.DialWithDialer(dialer, "tcp",
 			fmt.Sprintf("%s:%d", c.Host, c.Port),
 			&tls.Config{
 				// Typically IRC servers won't have valid certs.
@@ -73,24 +75,21 @@ func (c *Conn) Connect() error {
 			return err
 		}
 
-		c.conn.Conn = conn
 		c.connected = true
 	} else {
-		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+		conn, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
 			timeoutConnect)
 
 		if err != nil {
 			return err
 		}
 
-		c.conn.Conn = conn
 		c.connected = true
 	}
 
-	c.conn.RW = bufio.NewReadWriter(bufio.NewReader(c.conn.Conn),
-		bufio.NewWriter(c.conn.Conn))
+	c.conn = irc.NewConn(conn)
 
-	err := c.greet()
+	err = c.greet()
 	if err != nil {
 		return err
 	}

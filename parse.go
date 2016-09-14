@@ -2,6 +2,7 @@ package irc
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Message holds a protocol message.
@@ -14,6 +15,42 @@ type Message struct {
 
 	// There are at most 15 parameters.
 	Params []string
+}
+
+func (m Message) String() string {
+	return fmt.Sprintf("Prefix [%s] Command [%s] Params[%q]", m.Prefix, m.Command,
+		m.Params)
+}
+
+// Encode turns the in memory representation of the memory into the IRC
+// protocol message string.
+func (m Message) Encode() (string, error) {
+	// TODO: Need more validation.
+
+	s := ""
+
+	if len(m.Prefix) > 0 {
+		s += ":" + m.Prefix + " "
+	}
+
+	s += m.Command
+
+	for i, param := range m.Params {
+		if strings.IndexAny(param, ": ") != -1 {
+			s += " :" + param
+
+			if i+1 != len(m.Params) {
+				return "", fmt.Errorf("Parameter problem: ':' or ' ' outside last parameter.")
+			}
+			continue
+		}
+
+		s += " " + param
+	}
+
+	s += "\r\n"
+
+	return s, nil
 }
 
 // ParseMessage parses a message from the server.
@@ -170,7 +207,7 @@ func parseCommand(line string, index int) (string, int, error) {
 
 	// Return command string without space or CR.
 	// New index is at the CR or space.
-	return line[index:newIndex], newIndex, nil
+	return strings.ToUpper(line[index:newIndex]), newIndex, nil
 }
 
 // parseParams parses the params part of a message.
