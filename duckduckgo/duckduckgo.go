@@ -175,7 +175,12 @@ func hookDuck(conn *client.Conn, target string, args string) {
 			return
 		}
 
-		conn.Message(target, fmt.Sprintf("Exclusive match, but no redirect. (%s)",
+		if len(answer.Answer) > 0 {
+			conn.Message(target, fmt.Sprintf("Answer: %s", answer.Answer))
+			return
+		}
+
+		conn.Message(target, fmt.Sprintf("Exclusive match, but no redirect or answer. (%s)",
 			answer.APIURL))
 		return
 	}
