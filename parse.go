@@ -36,8 +36,14 @@ func (m Message) Encode() (string, error) {
 	s += m.Command
 
 	for i, param := range m.Params {
-		if strings.IndexAny(param, ": ") != -1 {
-			s += " :" + param
+		if idx := strings.IndexAny(param, ": "); idx != -1 {
+			// Permit specifically adding : (such as in RPL_NAMREPLY) even if it
+			// is not necessarily required.
+			if idx == 0 {
+				s += " " + param
+			} else {
+				s += " :" + param
+			}
 
 			if i+1 != len(m.Params) {
 				return "", fmt.Errorf("Parameter problem: ':' or ' ' outside last parameter.")
@@ -370,4 +376,55 @@ func parseParamLast(line string, index int) (string, int, error) {
 	}
 
 	return line[paramStartIndex:newIndex], newIndex, nil
+}
+
+// ParseChannels takes a channel(s) parameter, e.g., from a JOIN command,
+// and breaks it into the separate channel names.
+// We validate each.
+//
+// Channel names are comma separated.
+func ParseChannels(param string) ([]string, error) {
+	rawNames := strings.Split(param, ",")
+
+	channels := []string{}
+
+	for _, name := range rawNames {
+		name = CanonicalizeChannel(name)
+
+		channels = append(channels, name)
+
+		if !IsValidChannel(name) {
+			// Yes, I try to always pass one back. We want to include it
+			// in the error message if necessary.
+			return channels, fmt.Errorf("Invalid channel name: %s", name)
+		}
+	}
+
+	return channels, nil
+}
+
+// IsValidChannel checks a channel name for validity.
+//
+// You should canonicalize it before using this function.
+func IsValidChannel(c string) bool {
+	if len(c) == 0 {
+		return false
+	}
+
+	// TODO: I accept only a-z as valid characters right now.
+	for i, char := range c {
+		// TODO: I only allow # channels right now.
+		if i == 0 {
+			if char != '#' {
+				return false
+			}
+			continue
+		}
+
+		if char < 'a' || char > 'z' {
+			return false
+		}
+	}
+
+	return true
 }

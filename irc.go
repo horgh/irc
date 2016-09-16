@@ -112,3 +112,9 @@ func IsValidUser(u string) bool {
 func CanonicalizeNick(n string) string {
 	return strings.ToLower(n)
 }
+
+// CanonicalizeChannel converts the given channel to its canonical
+// representation (which must be unique).
+func CanonicalizeChannel(c string) string {
+	return strings.ToLower(c)
+}
