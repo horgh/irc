@@ -24,9 +24,10 @@ func (m Message) String() string {
 
 // Encode turns the in memory representation of the memory into the IRC
 // protocol message string.
+//
+// It does not enforce command specific semantics. It is instead responsible
+// only for placing prefix, command, and parameters.
 func (m Message) Encode() (string, error) {
-	// TODO: Need more validation.
-
 	s := ""
 
 	if len(m.Prefix) > 0 {
@@ -56,15 +57,20 @@ func (m Message) Encode() (string, error) {
 
 	s += "\r\n"
 
+	if len(s) > maxLineLength {
+		return "", fmt.Errorf("Message after encoding is too long (%d bytes)",
+			len(s))
+	}
+
 	return s, nil
 }
 
-// ParseMessage parses a message from the server.
+// parseMessage parses a protocol message from the client/server.
 //
 // See RFC 2812 Section 2.3.1.
 //
 // line ends with \n.
-func ParseMessage(line string) (Message, error) {
+func parseMessage(line string) (Message, error) {
 	message := Message{}
 	index := 0
 
@@ -380,6 +386,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 
 // ParseChannels takes a channel(s) parameter, e.g., from a JOIN command,
 // and breaks it into the separate channel names.
+//
 // We validate each.
 //
 // Channel names are comma separated.
@@ -394,37 +401,11 @@ func ParseChannels(param string) ([]string, error) {
 		channels = append(channels, name)
 
 		if !IsValidChannel(name) {
-			// Yes, I try to always pass one back. We want to include it
+			// I want to pass at least one channel name back. We want to include it
 			// in the error message if necessary.
 			return channels, fmt.Errorf("Invalid channel name: %s", name)
 		}
 	}
 
 	return channels, nil
-}
-
-// IsValidChannel checks a channel name for validity.
-//
-// You should canonicalize it before using this function.
-func IsValidChannel(c string) bool {
-	if len(c) == 0 {
-		return false
-	}
-
-	// TODO: I accept only a-z as valid characters right now.
-	for i, char := range c {
-		// TODO: I only allow # channels right now.
-		if i == 0 {
-			if char != '#' {
-				return false
-			}
-			continue
-		}
-
-		if char < 'a' || char > 'z' {
-			return false
-		}
-	}
-
-	return true
 }

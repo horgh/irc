@@ -99,23 +99,24 @@ func (c *Conn) Connect() error {
 
 // greet runs connection initiation (NICK, USER)
 func (c *Conn) greet() error {
-	err := c.conn.Write(fmt.Sprintf("NICK %s\r\n", c.Nick))
+	err := c.conn.WriteMessage(irc.Message{
+		Command: "NICK",
+		Params:  []string{c.Nick},
+	})
 	if err != nil {
-		return fmt.Errorf("Failed to send NICK: %s", err.Error())
+		return fmt.Errorf("Failed to send NICK: %s", err)
 	}
 
-	err = c.conn.Write(fmt.Sprintf("USER %s 0 * :%s\r\n", c.Ident, c.Name))
+	err = c.conn.WriteMessage(irc.Message{
+		Command: "USER",
+		Params:  []string{c.Ident, "0", "*", c.Name},
+	})
 	if err != nil {
-		return fmt.Errorf("Failed to send NICK: %s", err.Error())
+		return fmt.Errorf("Failed to send NICK: %s", err)
 	}
 
 	for {
-		line, err := c.conn.Read()
-		if err != nil {
-			return err
-		}
-
-		msg, err := irc.ParseMessage(line)
+		msg, err := c.conn.ReadMessage()
 		if err != nil {
 			return err
 		}
@@ -142,20 +143,16 @@ func (c *Conn) Loop() error {
 			return err
 		}
 
-		line, err := c.conn.Read()
-		if err != nil {
-			return err
-		}
-
-		msg, err := irc.ParseMessage(line)
+		msg, err := c.conn.ReadMessage()
 		if err != nil {
 			return err
 		}
 
 		if msg.Command == "PING" {
-			err = c.conn.Write(fmt.Sprintf("PONG %s\r\n", msg.Params[0]))
+			message := irc.Message{Command: "PONG", Params: []string{msg.Params[0]}}
+			err = c.conn.WriteMessage(message)
 			if err != nil {
-				return fmt.Errorf("Failed to send PONG: %s", err.Error())
+				return fmt.Errorf("Failed to send PONG: %s", err)
 			}
 			log.Printf("Sent PONG.")
 		}
@@ -164,7 +161,7 @@ func (c *Conn) Loop() error {
 			// After sending QUIT, the server acknowledges it with an ERROR
 			// command.
 			if c.sentQUIT {
-				log.Printf("Received QUIT acknowldgement. Closing connection.")
+				log.Printf("Received QUIT acknowledgement. Closing connection.")
 				return c.conn.Close()
 			}
 		}
@@ -182,7 +179,10 @@ func (c *Conn) hooks(message irc.Message) {
 
 // Join joins a channel.
 func (c *Conn) Join(name string) error {
-	return c.conn.Write(fmt.Sprintf("JOIN %s\r\n", name))
+	return c.conn.WriteMessage(irc.Message{
+		Command: "JOIN",
+		Params:  []string{name},
+	})
 }
 
 // Message sends a message.
@@ -206,8 +206,10 @@ func (c *Conn) Message(target string, message string) error {
 		}
 		piece := message[i:endIndex]
 
-		command := fmt.Sprintf("PRIVMSG %s :%s\r\n", target, piece)
-		err := c.conn.Write(command)
+		err := c.conn.WriteMessage(irc.Message{
+			Command: "PRIVMSG",
+			Params:  []string{target, piece},
+		})
 		if err != nil {
 			return nil
 		}
@@ -220,7 +222,10 @@ func (c *Conn) Message(target string, message string) error {
 //
 // We track when we send this as we expect an ERROR message in response.
 func (c *Conn) Quit(message string) error {
-	err := c.conn.Write(fmt.Sprintf("QUIT :%s\r\n", message))
+	err := c.conn.WriteMessage(irc.Message{
+		Command: "QUIT",
+		Params:  []string{message},
+	})
 	if err == nil {
 		c.sentQUIT = true
 	}
@@ -229,10 +234,16 @@ func (c *Conn) Quit(message string) error {
 
 // Oper sends an OPER command
 func (c *Conn) Oper(name string, password string) error {
-	return c.conn.Write(fmt.Sprintf("OPER %s %s\r\n", name, password))
+	return c.conn.WriteMessage(irc.Message{
+		Command: "OPER",
+		Params:  []string{name, password},
+	})
 }
 
 // UserMode sends a MODE command.
 func (c *Conn) UserMode(nick string, modes string) error {
-	return c.conn.Write(fmt.Sprintf("MODE %s %s\r\n", nick, modes))
+	return c.conn.WriteMessage(irc.Message{
+		Command: "MODE",
+		Params:  []string{nick, modes},
+	})
 }

@@ -1,7 +1,4 @@
-/*
- * Package irc provides functionality common to clients and servers.
- */
-
+// Package irc provides functionality common to clients and servers.
 package irc
 
 import (
@@ -41,8 +38,13 @@ func (c Conn) Close() error {
 	return c.conn.Close()
 }
 
-// Read reads a message from the connection.
-func (c Conn) Read() (string, error) {
+// RemoteAddr returns the remote network address.
+func (c Conn) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
+// read reads a line from the connection.
+func (c Conn) read() (string, error) {
 	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
 		return "", fmt.Errorf("Unable to set deadline: %s", err)
@@ -55,19 +57,30 @@ func (c Conn) Read() (string, error) {
 
 	log.Printf("Read: %s", strings.TrimRight(line, "\r\n"))
 
-	if len(line) > maxLineLength {
-		return "", fmt.Errorf("Line is too long.")
-	}
-
 	return line, nil
 }
 
-// Write writes a string to the connection
-func (c Conn) Write(s string) error {
-	if len(s) > maxLineLength {
-		return fmt.Errorf("Line is too long.")
+// ReadMessage reads a line from the connection and parses it as an IRC message.
+func (c Conn) ReadMessage() (Message, error) {
+	buf, err := c.read()
+	if err != nil {
+		return Message{}, fmt.Errorf("Unable to read: %s", err)
 	}
 
+	if len(buf) > maxLineLength {
+		return Message{}, fmt.Errorf("Line is too long.")
+	}
+
+	m, err := parseMessage(buf)
+	if err != nil {
+		return Message{}, fmt.Errorf("Unable to parse message: %s: %s", buf, err)
+	}
+
+	return m, nil
+}
+
+// write writes a string to the connection
+func (c Conn) write(s string) error {
 	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
 		return fmt.Errorf("Unable to set deadline: %s", err)
@@ -92,13 +105,39 @@ func (c Conn) Write(s string) error {
 	return nil
 }
 
+// WriteMessage writes an IRC message to the connection.
+func (c Conn) WriteMessage(m Message) error {
+	buf, err := m.Encode()
+	if err != nil {
+		return fmt.Errorf("Unable to encode message: %s", err)
+	}
+
+	return c.write(buf)
+}
+
 // IsValidNick checks if a nickname is valid.
 func IsValidNick(n string) bool {
 	if len(n) == 0 {
 		return false
 	}
 
-	// TODO: Implement
+	// TODO: For now I accept only a-z, 0-9, or _. RFC is more lenient.
+	for _, char := range n {
+		if char >= 'a' && char <= 'z' {
+			continue
+		}
+
+		if char >= '0' && char <= '9' {
+			continue
+		}
+
+		if char == '_' {
+			continue
+		}
+
+		return false
+	}
+
 	return true
 }
 
@@ -108,18 +147,67 @@ func IsValidUser(u string) bool {
 		return false
 	}
 
-	// TODO: Implement
+	// TODO: For now I accept only a-z or 0-9. RFC is more lenient.
+	for _, char := range u {
+		if char >= 'a' && char <= 'z' {
+			continue
+		}
+
+		if char >= '0' && char <= '9' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}
+
+// IsValidChannel checks a channel name for validity.
+//
+// You should canonicalize it before using this function.
+func IsValidChannel(c string) bool {
+	if len(c) == 0 {
+		return false
+	}
+
+	// TODO: I accept only a-z or 0-9 as valid characters right now. RFC
+	//   accepts more.
+	for i, char := range c {
+		if i == 0 {
+			// TODO: I only allow # channels right now.
+			if char == '#' {
+				continue
+			}
+			return false
+		}
+
+		if char >= 'a' && char <= 'z' {
+			continue
+		}
+
+		if char >= '0' && char <= '9' {
+			continue
+		}
+
+		return false
+	}
+
 	return true
 }
 
 // CanonicalizeNick converts the given nick to its canonical representation
 // (which must be unique).
+//
+// Note: We don't check validity or strip whitespace.
 func CanonicalizeNick(n string) string {
 	return strings.ToLower(n)
 }
 
 // CanonicalizeChannel converts the given channel to its canonical
 // representation (which must be unique).
+//
+// Note: We don't check validity or strip whitespace.
 func CanonicalizeChannel(c string) string {
 	return strings.ToLower(c)
 }
