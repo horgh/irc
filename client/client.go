@@ -165,7 +165,7 @@ func (c *Conn) Loop() error {
 			// command.
 			if c.sentQUIT {
 				log.Printf("Received QUIT acknowldgement. Closing connection.")
-				return c.conn.Conn.Close()
+				return c.conn.Close()
 			}
 		}
 

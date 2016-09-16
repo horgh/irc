@@ -15,8 +15,8 @@ import (
 
 // Conn is a connection to a client/server.
 type Conn struct {
-	// Conn: The connection if we are actively connected.
-	Conn net.Conn
+	// conn: The connection if we are actively connected.
+	conn net.Conn
 
 	// rw: Read/write handle to the connection
 	rw *bufio.ReadWriter
@@ -31,14 +31,19 @@ const maxLineLength = 512
 // NewConn initializes a Conn struct
 func NewConn(conn net.Conn) Conn {
 	return Conn{
-		Conn: conn,
+		conn: conn,
 		rw:   bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn)),
 	}
 }
 
+// Close closes the underlying connection
+func (c Conn) Close() error {
+	return c.conn.Close()
+}
+
 // Read reads a message from the connection.
 func (c Conn) Read() (string, error) {
-	err := c.Conn.SetDeadline(time.Now().Add(timeoutTime))
+	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
 		return "", fmt.Errorf("Unable to set deadline: %s", err)
 	}
@@ -63,7 +68,7 @@ func (c Conn) Write(s string) error {
 		return fmt.Errorf("Line is too long.")
 	}
 
-	err := c.Conn.SetDeadline(time.Now().Add(timeoutTime))
+	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
 		return fmt.Errorf("Unable to set deadline: %s", err)
 	}
