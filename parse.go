@@ -18,7 +18,7 @@ type Message struct {
 }
 
 func (m Message) String() string {
-	return fmt.Sprintf("Prefix [%s] Command [%s] Params[%q]", m.Prefix, m.Command,
+	return fmt.Sprintf("Prefix [%s] Command [%s] Params%q", m.Prefix, m.Command,
 		m.Params)
 }
 
@@ -324,7 +324,7 @@ func parseParam(line string, index int) (string, int, error) {
 	paramIndexStart := newIndex
 
 	for newIndex < len(line) {
-		// XXX: We should not permit ':' either. However in practice it appears
+		// TODO: We should not permit ':' either. However in practice it appears
 		//   IRC servers in the wild will send middle parameters with : inside.
 		//   e.g., ircd-ratbox in its 005 command.
 		if line[newIndex] == '\x00' || line[newIndex] == '\r' ||
@@ -382,30 +382,4 @@ func parseParamLast(line string, index int) (string, int, error) {
 	}
 
 	return line[paramStartIndex:newIndex], newIndex, nil
-}
-
-// ParseChannels takes a channel(s) parameter, e.g., from a JOIN command,
-// and breaks it into the separate channel names.
-//
-// We validate each.
-//
-// Channel names are comma separated.
-func ParseChannels(param string) ([]string, error) {
-	rawNames := strings.Split(param, ",")
-
-	channels := []string{}
-
-	for _, name := range rawNames {
-		name = CanonicalizeChannel(name)
-
-		channels = append(channels, name)
-
-		if !IsValidChannel(name) {
-			// I want to pass at least one channel name back. We want to include it
-			// in the error message if necessary.
-			return channels, fmt.Errorf("Invalid channel name: %s", name)
-		}
-	}
-
-	return channels, nil
 }

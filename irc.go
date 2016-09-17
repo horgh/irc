@@ -195,19 +195,3 @@ func IsValidChannel(c string) bool {
 
 	return true
 }
-
-// CanonicalizeNick converts the given nick to its canonical representation
-// (which must be unique).
-//
-// Note: We don't check validity or strip whitespace.
-func CanonicalizeNick(n string) string {
-	return strings.ToLower(n)
-}
-
-// CanonicalizeChannel converts the given channel to its canonical
-// representation (which must be unique).
-//
-// Note: We don't check validity or strip whitespace.
-func CanonicalizeChannel(c string) string {
-	return strings.ToLower(c)
-}
