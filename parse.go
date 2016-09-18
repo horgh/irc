@@ -57,7 +57,7 @@ func (m Message) Encode() (string, error) {
 
 	s += "\r\n"
 
-	if len(s) > maxLineLength {
+	if len(s) > MaxLineLength {
 		return "", fmt.Errorf("Message after encoding is too long (%d bytes)",
 			len(s))
 	}

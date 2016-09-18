@@ -22,8 +22,9 @@ type Conn struct {
 // timeoutTime is how long we wait on network I/O.
 const timeoutTime = 5 * time.Minute
 
+// MaxLineLength is the maximum protocol message line length.
 // From RFC 2812 section 2.3. It includes CRLF.
-const maxLineLength = 512
+const MaxLineLength = 512
 
 // NewConn initializes a Conn struct
 func NewConn(conn net.Conn) Conn {
@@ -52,7 +53,7 @@ func (c Conn) read() (string, error) {
 
 	line, err := c.rw.ReadString('\n')
 	if err != nil {
-		return "", fmt.Errorf("Unable to read: %s", err)
+		return "", err
 	}
 
 	log.Printf("Read: %s", strings.TrimRight(line, "\r\n"))
@@ -64,10 +65,10 @@ func (c Conn) read() (string, error) {
 func (c Conn) ReadMessage() (Message, error) {
 	buf, err := c.read()
 	if err != nil {
-		return Message{}, fmt.Errorf("Unable to read: %s", err)
+		return Message{}, err
 	}
 
-	if len(buf) > maxLineLength {
+	if len(buf) > MaxLineLength {
 		return Message{}, fmt.Errorf("Line is too long.")
 	}
 
@@ -88,7 +89,7 @@ func (c Conn) write(s string) error {
 
 	sz, err := c.rw.WriteString(s)
 	if err != nil {
-		return fmt.Errorf("Unable to write: %s", err)
+		return err
 	}
 
 	if sz != len(s) {
@@ -113,85 +114,4 @@ func (c Conn) WriteMessage(m Message) error {
 	}
 
 	return c.write(buf)
-}
-
-// IsValidNick checks if a nickname is valid.
-func IsValidNick(n string) bool {
-	if len(n) == 0 {
-		return false
-	}
-
-	// TODO: For now I accept only a-z, 0-9, or _. RFC is more lenient.
-	for _, char := range n {
-		if char >= 'a' && char <= 'z' {
-			continue
-		}
-
-		if char >= '0' && char <= '9' {
-			continue
-		}
-
-		if char == '_' {
-			continue
-		}
-
-		return false
-	}
-
-	return true
-}
-
-// IsValidUser checks if a user (USER command) is valid
-func IsValidUser(u string) bool {
-	if len(u) == 0 {
-		return false
-	}
-
-	// TODO: For now I accept only a-z or 0-9. RFC is more lenient.
-	for _, char := range u {
-		if char >= 'a' && char <= 'z' {
-			continue
-		}
-
-		if char >= '0' && char <= '9' {
-			continue
-		}
-
-		return false
-	}
-
-	return true
-}
-
-// IsValidChannel checks a channel name for validity.
-//
-// You should canonicalize it before using this function.
-func IsValidChannel(c string) bool {
-	if len(c) == 0 {
-		return false
-	}
-
-	// TODO: I accept only a-z or 0-9 as valid characters right now. RFC
-	//   accepts more.
-	for i, char := range c {
-		if i == 0 {
-			// TODO: I only allow # channels right now.
-			if char == '#' {
-				continue
-			}
-			return false
-		}
-
-		if char >= 'a' && char <= 'z' {
-			continue
-		}
-
-		if char >= '0' && char <= '9' {
-			continue
-		}
-
-		return false
-	}
-
-	return true
 }
