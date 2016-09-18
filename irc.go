@@ -17,9 +17,12 @@ type Conn struct {
 
 	// rw: Read/write handle to the connection
 	rw *bufio.ReadWriter
+
+	// How long we wait on read/write.
+	IOTimeoutDuration time.Duration
 }
 
-// timeoutTime is how long we wait on network I/O.
+// timeoutTime is how long we wait on network I/O by default.
 const timeoutTime = 5 * time.Minute
 
 // MaxLineLength is the maximum protocol message line length.
@@ -30,7 +33,9 @@ const MaxLineLength = 512
 func NewConn(conn net.Conn) Conn {
 	return Conn{
 		conn: conn,
-		rw:   bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn)),
+		rw: bufio.NewReadWriter(bufio.NewReader(conn),
+			bufio.NewWriter(conn)),
+		IOTimeoutDuration: timeoutTime,
 	}
 }
 
@@ -46,9 +51,11 @@ func (c Conn) RemoteAddr() net.Addr {
 
 // read reads a line from the connection.
 func (c Conn) read() (string, error) {
-	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
-	if err != nil {
-		return "", fmt.Errorf("Unable to set deadline: %s", err)
+	if c.IOTimeoutDuration > 0 {
+		err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
+		if err != nil {
+			return "", fmt.Errorf("Unable to set deadline: %s", err)
+		}
 	}
 
 	line, err := c.rw.ReadString('\n')
@@ -82,9 +89,11 @@ func (c Conn) ReadMessage() (Message, error) {
 
 // write writes a string to the connection
 func (c Conn) write(s string) error {
-	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
-	if err != nil {
-		return fmt.Errorf("Unable to set deadline: %s", err)
+	if c.IOTimeoutDuration > 0 {
+		err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
+		if err != nil {
+			return fmt.Errorf("Unable to set deadline: %s", err)
+		}
 	}
 
 	sz, err := c.rw.WriteString(s)
