@@ -35,7 +35,7 @@ type Conn struct {
 	TLS bool
 
 	// Config holds the parsed config file data.
-	Config irc.Config
+	Config map[string]string
 
 	// connected: Whether currently connected or not
 	connected bool

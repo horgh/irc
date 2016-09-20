@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"summercat.com/irc"
+	"summercat.com/config"
 	"summercat.com/irc/client"
 	_ "summercat.com/irc/duckduckgo"
 	_ "summercat.com/irc/oper"
@@ -57,7 +57,7 @@ func main() {
 	}
 
 	if len(*configFile) > 0 {
-		config, err := irc.LoadConfig(*configFile)
+		config, err := config.ReadStringMap(*configFile)
 		if err != nil {
 			log.Fatalf("Unable to load config: %s: %s", *configFile, err)
 		}
