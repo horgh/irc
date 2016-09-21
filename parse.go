@@ -1,9 +1,14 @@
+// Package irc implements parsing and encoding of IRC protocol messages.
 package irc
 
 import (
 	"fmt"
 	"strings"
 )
+
+// MaxLineLength is the maximum protocol message line length.
+// From RFC 2812 section 2.3. It includes CRLF.
+const MaxLineLength = 512
 
 // Message holds a protocol message.
 // See section 2.3.1 in RFC 2812.
@@ -65,12 +70,17 @@ func (m Message) Encode() (string, error) {
 	return s, nil
 }
 
-// parseMessage parses a protocol message from the client/server.
+// ParseMessage parses a protocol message from the client/server.
 //
 // See RFC 2812 Section 2.3.1.
 //
 // line ends with \n.
-func parseMessage(line string) (Message, error) {
+func ParseMessage(line string) (Message, error) {
+	if len(line) > MaxLineLength {
+		return Message{}, fmt.Errorf("Line exceeds maximum length: %d vs. %d",
+			len(line), MaxLineLength)
+	}
+
 	message := Message{}
 	index := 0
 

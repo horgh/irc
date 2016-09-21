@@ -93,33 +93,33 @@ func TestParseMessage(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		msg, err := parseMessage(test.input)
+		msg, err := ParseMessage(test.input)
 		if err != nil {
 			if test.fail != true {
-				t.Errorf("parseMessage(%q) = %s", test.input, err)
+				t.Errorf("ParseMessage(%q) = %s", test.input, err)
 			}
 			continue
 		}
 
 		if test.fail {
-			t.Errorf("parseMessage(%q) should have failed, but did not.", test.input)
+			t.Errorf("ParseMessage(%q) should have failed, but did not.", test.input)
 			continue
 		}
 
 		if msg.Prefix != test.prefix {
-			t.Errorf("parseMessage(%q) got prefix %v, wanted %v", test.input,
+			t.Errorf("ParseMessage(%q) got prefix %v, wanted %v", test.input,
 				msg.Prefix, test.prefix)
 			continue
 		}
 
 		if msg.Command != test.command {
-			t.Errorf("parseMessage(%q) got command %v, wanted %v", test.input,
+			t.Errorf("ParseMessage(%q) got command %v, wanted %v", test.input,
 				msg.Command, test.command)
 			continue
 		}
 
 		if !paramsEqual(msg.Params, test.params) {
-			t.Errorf("parseMessage(%q) got params %q, wanted %q", test.input,
+			t.Errorf("ParseMessage(%q) got params %q, wanted %q", test.input,
 				msg.Params, test.params)
 			continue
 		}
