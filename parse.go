@@ -330,13 +330,18 @@ func parseParam(line string, index int) (string, int, error) {
 	}
 
 	// SPACE middle
+	// middle     =  nospcrlfcl *( ":" / nospcrlfcl )
+	// nospcrlfcl = any octet except NUL, CR, LF, " ", ":"
+	// This means the first character must not be any of those, but afterwards :
+	// may appear.
+	//
+	// We know from the above check (for SPACE ":" trailing) that it is NOT ":",
+	// so we can take all except NUL, CR, LF, " ".
 
+	// paramIndexStart points at the character after the space.
 	paramIndexStart := newIndex
 
 	for newIndex < len(line) {
-		// TODO: We should not permit ':' either. However in practice it appears
-		//   IRC servers in the wild will send middle parameters with : inside.
-		//   e.g., ircd-ratbox in its 005 command.
 		if line[newIndex] == '\x00' || line[newIndex] == '\r' ||
 			line[newIndex] == '\n' || line[newIndex] == ' ' {
 			break

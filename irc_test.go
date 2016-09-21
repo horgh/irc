@@ -72,8 +72,7 @@ func TestParseMessage(t *testing.T) {
 
 		{":irc 000 a\x00 1 \r\n", "", "", []string{}, true},
 
-		// Malformed because : inside a middle
-		// However I permit this. See comment in parseParams().
+		// : inside a middle. Valid.
 		{":irc 000 a:bc\r\n", "irc", "000", []string{"a:bc"}, false},
 
 		{":irc 000 hi :there yes\r\n", "irc", "000", []string{"hi", "there yes"},
