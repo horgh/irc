@@ -89,6 +89,10 @@ func TestParseMessage(t *testing.T) {
 		// Ratbox currently does send messages like this however.
 		{":irc MODE #test +o user  \r\n", "irc", "MODE", []string{"+o", "user"},
 			true},
+
+		// Blank topic parameter is used to unset the topic.
+		{":nick!user@host TOPIC #test :\r\n", "nick!user@host", "TOPIC", []string{"#test", ""},
+			false},
 	}
 
 	for _, test := range tests {
