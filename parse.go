@@ -43,13 +43,7 @@ func (m Message) Encode() (string, error) {
 
 	for i, param := range m.Params {
 		if idx := strings.IndexAny(param, ": "); idx != -1 {
-			// Permit specifically adding : (such as in RPL_NAMREPLY) even if it
-			// is not necessarily required.
-			if idx == 0 {
-				s += " " + param
-			} else {
-				s += " :" + param
-			}
+			s += " :" + param
 
 			if i+1 != len(m.Params) {
 				return "", fmt.Errorf("Parameter problem: ':' or ' ' outside last parameter.")

@@ -302,3 +302,51 @@ func paramsEqual(params1, params2 []string) bool {
 
 	return true
 }
+
+func TestEncodeMessage(t *testing.T) {
+	tests := []struct {
+		input   Message
+		output  string
+		success bool
+	}{
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				Params:  []string{"nick2", "hi there"},
+			},
+			":nick PRIVMSG nick2 :hi there\r\n",
+			true,
+		},
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				Params:  []string{"nick2", " hi there"},
+			},
+			":nick PRIVMSG nick2 : hi there\r\n",
+			true,
+		},
+	}
+
+	for _, test := range tests {
+		buf, err := test.input.Encode()
+		if err != nil {
+			if test.success {
+				t.Errorf("Encode(%s) failed but should succeed: %s", test.input, err)
+				continue
+			}
+			continue
+		}
+
+		if !test.success {
+			t.Errorf("Encode(%s) succeeded but should fail", test.input)
+			continue
+		}
+
+		if buf != test.output {
+			t.Errorf("Encode(%s) = %s, wanted %s", test.input, buf, test.output)
+			continue
+		}
+	}
+}
