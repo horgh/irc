@@ -327,6 +327,37 @@ func TestEncodeMessage(t *testing.T) {
 			":nick PRIVMSG nick2 : hi there\r\n",
 			true,
 		},
+		{
+			Message{
+				Command: "TOPIC",
+				Prefix:  "nick",
+				Params:  []string{"#test", "hi there"},
+			},
+			":nick TOPIC #test :hi there\r\n",
+			true,
+		},
+
+		// We can have zero length TOPIC in TS6 protocol - for when the topic is
+		// to be unset.
+		{
+			Message{
+				Command: "TOPIC",
+				Prefix:  "nick",
+				Params:  []string{"#test", ""},
+			},
+			":nick TOPIC #test :\r\n",
+			true,
+		},
+
+		{
+			Message{
+				Command: "TOPIC",
+				Prefix:  "nick",
+				Params:  []string{"#test", ":"},
+			},
+			":nick TOPIC #test ::\r\n",
+			true,
+		},
 	}
 
 	for _, test := range tests {

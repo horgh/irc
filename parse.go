@@ -42,9 +42,19 @@ func (m Message) Encode() (string, error) {
 	s += m.Command
 
 	for i, param := range m.Params {
-		if idx := strings.IndexAny(param, ": "); idx != -1 {
+		// If we have a ":" or " ", then we need to prefix the parameter with ":".
+		// This is only valid for the last ("trailing") parameter.
+		//
+		// Also, the trailing parameter may be an empty string. Ensure it shows up
+		// by adding a :. This can happen e.g. from ircd-ratbox in TOPIC unset
+		// command // (server protocol). Modern IRC and ircv3 both specify this as
+		// valid (that the last parameter may be empty). Also, RFC 2812's grammar
+		// permits it. The ":" is optional only if this is the 15th parameter. But
+		// it is valid.
+		if idx := strings.IndexAny(param, ": "); idx != -1 || len(param) == 0 {
 			s += " :" + param
 
+			// This must be the last parameter.
 			if i+1 != len(m.Params) {
 				return "", fmt.Errorf("Parameter problem: ':' or ' ' outside last parameter.")
 			}
