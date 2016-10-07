@@ -13,8 +13,12 @@ func TestParseMessage(t *testing.T) {
 		fail    bool
 	}{
 		{":irc PRIVMSG\r\n", "irc", "PRIVMSG", []string{}, false},
+
+		{":irc PRIVMSG", "", "", []string{}, true},
+
+		{":irc PRIVMSG one", "", "", []string{}, true},
+
 		{":irc \r\n", "", "", []string{}, true},
-		{":irc PRIVMSG \r\n", "", "", []string{}, true},
 		{"PRIVMSG\r\n", "", "PRIVMSG", []string{}, false},
 		{"PRIVMSG :hi there\r\n", "", "PRIVMSG", []string{"hi there"}, false},
 		{": PRIVMSG \r\n", "", "", []string{}, true},
@@ -23,7 +27,11 @@ func TestParseMessage(t *testing.T) {
 		{":irc PRIVMSG blah\r\n", "irc", "PRIVMSG", []string{"blah"}, false},
 		{":irc 001 :Welcome\r\n", "irc", "001", []string{"Welcome"}, false},
 		{":irc 001\r\n", "irc", "001", []string{}, false},
-		{":irc PRIVMSG \r\n", "", "", []string{}, true},
+
+		// This is technically invalid per grammar as there is a trailing space.
+		// However I permit it as we see trailing space in the wild frequently.
+		{":irc PRIVMSG \r\n", "irc", "PRIVMSG", []string{}, false},
+
 		{":irc @01\r\n", "", "", []string{}, true},
 		{":irc \r\n", "", "", []string{}, true},
 		{":irc  PRIVMSG\r\n", "", "", []string{}, true},
@@ -62,13 +70,15 @@ func TestParseMessage(t *testing.T) {
 		{":irc 000 \r\r\n", "", "", []string{}, true},
 
 		// Param must not be blank unless last param.
-		{":irc 000 \r\n", "", "", []string{}, true},
+		// While this violates the grammar, I permit it now anyway.
+		{":irc 000 \r\n", "irc", "000", []string{}, false},
 
 		{":irc 000 0a 1b\r\n", "irc", "000", []string{"0a", "1b"}, false},
 
 		// If we have a space then there must be a parameter (unless it's the
 		// 15th).
-		{":irc 000 0 1 \r\n", "", "", []string{}, true},
+		// While this violates the grammar, I permit it now anyway.
+		{":irc 000 0 1 \r\n", "irc", "000", []string{"0", "1"}, false},
 
 		{":irc 000 a\x00 1 \r\n", "", "", []string{}, true},
 
@@ -245,13 +255,15 @@ func TestParseParams(t *testing.T) {
 		{":irc 000 \r\r\n", 8, nil, -1},
 
 		// Must not be blank unless last param.
-		{":irc 000 \r\n", 8, nil, -1},
+		// While this violates the grammar, I permit it now anyway.
+		{":irc 000 \r\n", 8, []string{}, 9},
 
 		{":irc 000 0a 1b\r\n", 8, []string{"0a", "1b"}, 14},
 
 		// If we have a space then there must be a parameter (unless it's the
 		// 15th).
-		{":irc 000 0 1 \r\n", 8, nil, -1},
+		// While this violates the grammar, I permit it now anyway.
+		{":irc 000 0 1 \r\n", 8, []string{"0", "1"}, 13},
 
 		// This is a malformed message but the parameter parsing won't catch
 		// it. Let overall message parsing get it.
@@ -273,6 +285,7 @@ func TestParseParams(t *testing.T) {
 
 		if test.newIndex == -1 {
 			t.Errorf("parseParams(%q) should have failed, but did not", test.input)
+			continue
 		}
 
 		if !paramsEqual(params, test.params) {

@@ -111,10 +111,6 @@ func ParseMessage(line string) (Message, error) {
 
 	message.Command = command
 
-	if index >= len(line) {
-		return Message{}, fmt.Errorf("Malformed message. Command ends message.")
-	}
-
 	// May have params.
 	params, index, err := parseParams(line, index)
 	if err != nil {
@@ -268,6 +264,15 @@ func parseParams(line string, index int) ([]string, int, error) {
 		if len(params) < 14 {
 			param, paramIndex, err := parseParam(line, newIndex)
 			if err != nil {
+				// At this point we should always have at least one character in the
+				// param. However it is common in the wild (ratbox, quassel) for there
+				// to be a single space character before CRLF. Permit it here.
+				// Set index to point after the spurious " " as though we consumed it.
+				if err.Error() == "Param with zero characters" &&
+					newIndex+3 == len(line) && line[newIndex] == ' ' &&
+					line[newIndex+1] == '\r' && line[newIndex+2] == '\n' {
+					return params, newIndex + 1, nil
+				}
 				return nil, -1, fmt.Errorf("Problem parsing parameter: %s", err)
 			}
 			newIndex = paramIndex
@@ -353,9 +358,9 @@ func parseParam(line string, index int) (string, int, error) {
 		newIndex++
 	}
 
-	// Must have at least one character in this case.
+	// Must have at least one character in this case. See grammar for 'middle'.
 	if paramIndexStart == newIndex {
-		return "", -1, fmt.Errorf("Malformed message. Param with zero characters.")
+		return "", -1, fmt.Errorf("Param with zero characters")
 	}
 
 	return line[paramIndexStart:newIndex], newIndex, nil
@@ -375,6 +380,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 
 	// If we're at the end of the string, then something is wrong. While the
 	// parameter may be blank, there should at least be CRLF remaining.
+	// It's valid for there to be no characters.
 	if newIndex == len(line) {
 		return "", -1, fmt.Errorf("Malformed param. Space ends message.")
 	}
@@ -383,6 +389,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 	if line[newIndex] == ':' {
 		newIndex++
 
+		// See above. We should have at least CRLF.
 		if newIndex == len(line) {
 			return "", -1, fmt.Errorf("Malformed param. : ends message.")
 		}
