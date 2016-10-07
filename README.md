@@ -1,3 +1,4 @@
+# IRC
 This is a collection of IRC programs and libraries written in Go. It includes a
 library for working with the IRC protocol (decoding/encoding). There is also a
 client library and packages that add functionality to the client.
@@ -49,6 +50,6 @@ and then quits. It is useful if you need to notify an IRC channel from
 something like a cronjob.
 
 
-### Client: irc/test\_client
+## Client: irc/test\_client
 This is an example client. Currently it connects to IRC and acts like a bot. It
 demonstrates using several of the client packages.
