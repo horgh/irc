@@ -52,9 +52,6 @@ var ddgTriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:ddg|d|g|google)(\\s+.*|$)
 var ddg1TriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:ddg1|d1|g1)(\\s+.*|$)")
 var duckTriggerRe = regexp.MustCompile("(?i)^\\s*[!.](?:duck)(\\s+.*|$)")
 
-// The user agent to send.
-var userAgent = "Lynx/2.8.8dev.2 libwww-FM/2.14 SSL-MM/1.4.1"
-
 // Timeout on HTTP requests.
 var timeout = 15 * time.Second
 
@@ -220,8 +217,7 @@ func hookDuck(conn *client.Conn, target string, args string) {
 //
 // Definition
 func getInstantAnswer(query string) (Answer, error) {
-	// I want to set headers, so I need to build and make the request this
-	// way.
+	// I want to set headers, so I need to build and make the request this way.
 
 	values := url.Values{}
 	values.Set("q", query)
@@ -238,11 +234,9 @@ func getInstantAnswer(query string) (Answer, error) {
 		return Answer{}, fmt.Errorf("Preparing request: %s", err)
 	}
 
-	request.Header.Set("User-Agent", userAgent)
-
 	client := http.Client{Timeout: timeout}
 
-	log.Printf("Making request... [%s]", query)
+	log.Printf("Making request... [%s] (URL %s)", query, apiURL)
 
 	resp, err := client.Do(request)
 	if err != nil {
@@ -259,6 +253,7 @@ func getInstantAnswer(query string) (Answer, error) {
 	answer := Answer{}
 	err = json.Unmarshal(body, &answer)
 	if err != nil {
+		log.Printf("Body: %s", body)
 		return Answer{}, fmt.Errorf("Unable to decode: %s", err)
 	}
 
@@ -310,8 +305,7 @@ func getRawSearchResults(query string) ([]byte, error) {
 		}
 	}
 
-	// I want to set headers, so I need to build and make the request this
-	// way.
+	// I want to set headers, so I need to build and make the request this way.
 
 	values := url.Values{}
 	values.Set("q", query)
@@ -322,6 +316,8 @@ func getRawSearchResults(query string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Preparing request: %s", err)
 	}
+
+	userAgent := "Lynx/2.8.8dev.2 libwww-FM/2.14 SSL-MM/1.4.1"
 
 	request.Header.Set("User-Agent", userAgent)
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
