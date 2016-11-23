@@ -95,7 +95,7 @@ func Hook(conn *client.Conn, message irc.Message) {
 func hookDDG(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
-		conn.Message(target, "Usage: !ddg <query>")
+		_ = conn.Message(target, "Usage: !ddg <query>")
 		return
 	}
 
@@ -106,7 +106,7 @@ func hookDDG(conn *client.Conn, target string, args string) {
 func hookDDG1(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
-		conn.Message(target, "Usage: !ddg1 <query>")
+		_ = conn.Message(target, "Usage: !ddg1 <query>")
 		return
 	}
 
@@ -119,36 +119,37 @@ func hookDDG1(conn *client.Conn, target string, args string) {
 func hookDuck(conn *client.Conn, target string, args string) {
 	query := strings.TrimSpace(args)
 	if len(query) == 0 {
-		conn.Message(target, "Usage: !duck <query>")
+		_ = conn.Message(target, "Usage: !duck <query>")
 		return
 	}
 
 	answer, err := getInstantAnswer(query)
 	if err != nil {
-		conn.Message(target, fmt.Sprintf("Failure: %s", err))
+		_ = conn.Message(target, fmt.Sprintf("Failure: %s", err))
 		return
 	}
 
 	// Topic summary (type A)
 	if answer.Type == "A" {
 		if len(answer.AbstractText) == 0 {
-			conn.Message(target, fmt.Sprintf("Missing summary! (%s)", answer.APIURL))
+			_ = conn.Message(target, fmt.Sprintf("Missing summary! (%s)",
+				answer.APIURL))
 			return
 		}
 
-		conn.Message(target, answer.AbstractText)
+		_ = conn.Message(target, answer.AbstractText)
 		return
 	}
 
 	// Disambiguation (type D)
 	if answer.Type == "D" {
 		if len(answer.RelatedTopics) > 0 && len(answer.RelatedTopics[0].Text) > 0 {
-			conn.Message(target, fmt.Sprintf("Did you mean: %s",
+			_ = conn.Message(target, fmt.Sprintf("Did you mean: %s",
 				answer.RelatedTopics[0].Text))
 			return
 		}
 
-		conn.Message(target, fmt.Sprintf("No exact result found. (%s).",
+		_ = conn.Message(target, fmt.Sprintf("No exact result found. (%s).",
 			answer.APIURL))
 		return
 	}
@@ -156,11 +157,12 @@ func hookDuck(conn *client.Conn, target string, args string) {
 	// Category (Type C). Lists related. e.g. list of Simpsons characters.
 	if answer.Type == "C" {
 		if len(answer.RelatedTopics) > 0 && len(answer.RelatedTopics[0].Text) > 0 {
-			conn.Message(target, fmt.Sprintf("First result: %s",
+			_ = conn.Message(target, fmt.Sprintf("First result: %s",
 				answer.RelatedTopics[0].Text))
 			return
 		}
-		conn.Message(target, fmt.Sprintf("No category found (%s).", answer.APIURL))
+		_ = conn.Message(target, fmt.Sprintf("No category found (%s).",
+			answer.APIURL))
 		return
 
 	}
@@ -168,33 +170,33 @@ func hookDuck(conn *client.Conn, target string, args string) {
 	// Exclusive (Type E). Exclusive. e.g., !bang
 	if answer.Type == "E" {
 		if len(answer.Redirect) > 0 {
-			conn.Message(target, fmt.Sprintf("Found: %s", answer.Redirect))
+			_ = conn.Message(target, fmt.Sprintf("Found: %s", answer.Redirect))
 			return
 		}
 
 		if len(answer.Answer) > 0 {
-			conn.Message(target, fmt.Sprintf("Answer: %s", answer.Answer))
+			_ = conn.Message(target, fmt.Sprintf("Answer: %s", answer.Answer))
 			return
 		}
 
-		conn.Message(target, fmt.Sprintf("Exclusive match, but no redirect or answer. (%s)",
+		_ = conn.Message(target, fmt.Sprintf("Exclusive match, but no redirect or answer. (%s)",
 			answer.APIURL))
 		return
 	}
 
 	// Name (type N). Name.
 	if answer.Type == "N" {
-		conn.Message(target,
+		_ = conn.Message(target,
 			fmt.Sprintf("Name result found but not supported (%s)", answer.APIURL))
 		return
 	}
 
 	if answer.Type == "" {
-		conn.Message(target, fmt.Sprintf("No results. (%s)", answer.APIURL))
+		_ = conn.Message(target, fmt.Sprintf("No results. (%s)", answer.APIURL))
 		return
 	}
 
-	conn.Message(target, fmt.Sprintf("Unknown answer type (%s). (%s)",
+	_ = conn.Message(target, fmt.Sprintf("Unknown answer type (%s). (%s)",
 		answer.Type, answer.APIURL))
 }
 
@@ -243,12 +245,12 @@ func getInstantAnswer(query string) (Answer, error) {
 		return Answer{}, fmt.Errorf("HTTP failure: %s", err)
 	}
 
-	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		_ = resp.Body.Close()
 		return Answer{}, fmt.Errorf("Read failure: %s", err)
 	}
+	_ = resp.Body.Close()
 
 	answer := Answer{}
 	err = json.Unmarshal(body, &answer)
@@ -266,23 +268,23 @@ func getInstantAnswer(query string) (Answer, error) {
 func search(conn *client.Conn, target string, query string, result int) {
 	body, err := getRawSearchResults(query)
 	if err != nil {
-		conn.Message(target, fmt.Sprintf("Query failure: %s", err))
+		_ = conn.Message(target, fmt.Sprintf("Query failure: %s", err))
 		return
 	}
 
 	results, err := parseSearchResults(body)
 	if err != nil {
-		conn.Message(target, fmt.Sprintf("Failure parsing results: %s", err))
+		_ = conn.Message(target, fmt.Sprintf("Failure parsing results: %s", err))
 		return
 	}
 
 	if len(results) == 0 {
-		conn.Message(target, "No results.")
+		_ = conn.Message(target, "No results.")
 		return
 	}
 
 	for i := 0; i < result && i < len(results); i++ {
-		conn.Message(target, fmt.Sprintf("%s - %s", results[i].URL,
+		_ = conn.Message(target, fmt.Sprintf("%s - %s", results[i].URL,
 			results[i].Text))
 	}
 }
@@ -331,12 +333,12 @@ func getRawSearchResults(query string) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP failure: %s", err)
 	}
 
-	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("Read failure: %s", err)
 	}
+	_ = resp.Body.Close()
 
 	// In debug mode we save the response to disk.
 	// This is because I don't want to repeatedly hit the site when debugging
