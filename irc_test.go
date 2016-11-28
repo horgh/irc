@@ -95,6 +95,9 @@ func TestParseMessage(t *testing.T) {
 		{":irc 000 hi:hi :no no :yes yes\r\n", "irc", "000", []string{"hi:hi", "no no :yes yes"},
 			false},
 
+		{":irc 000 hi:hi :no no :yes yes\n", "irc", "000", []string{"hi:hi", "no no :yes yes"},
+			false},
+
 		// Fails and SHOULD actually. Trailing whitespace is not valid here.
 		// Ratbox currently does send messages like this however.
 		{":irc MODE #test +o user  \r\n", "irc", "MODE", []string{"+o", "user"},
@@ -135,6 +138,43 @@ func TestParseMessage(t *testing.T) {
 			t.Errorf("ParseMessage(%q) got params %q, wanted %q", test.input,
 				msg.Params, test.params)
 			continue
+		}
+	}
+}
+
+func TestFixLineEnding(t *testing.T) {
+	tests := []struct {
+		input   string
+		output  string
+		success bool
+	}{
+		{"hi", "", false},
+		{"hi\n", "hi\r\n", true},
+		{"hi\r\n", "hi\r\n", true},
+		{"\n", "\r\n", true},
+		{"\r\n", "\r\n", true},
+	}
+
+	for _, test := range tests {
+		out, err := fixLineEnding(test.input)
+		if err != nil {
+			if !test.success {
+				continue
+			}
+
+			t.Errorf("fixLineEnding(%s) failed %s, wanted %s", test.input, err,
+				test.output)
+			continue
+		}
+
+		if !test.success {
+			t.Errorf("fixLineEnding(%s) succeeded, wanted failure", test.input)
+			continue
+		}
+
+		if out != test.output {
+			t.Errorf("fixLineEnding(%s) = %s, wanted %s", test.input, out,
+				test.output)
 		}
 	}
 }

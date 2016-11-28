@@ -85,6 +85,11 @@ func ParseMessage(line string) (Message, error) {
 			len(line), MaxLineLength)
 	}
 
+	line, err := fixLineEnding(line)
+	if err != nil {
+		return Message{}, fmt.Errorf("Line does not have a valid ending: %s", line)
+	}
+
 	message := Message{}
 	index := 0
 
@@ -126,6 +131,36 @@ func ParseMessage(line string) (Message, error) {
 	}
 
 	return message, nil
+}
+
+// fixLineEnding tries to ensure the line ends with CRLF.
+//
+// If it ends with only LF, add a CR.
+func fixLineEnding(line string) (string, error) {
+	if len(line) == 0 {
+		return "", fmt.Errorf("Line is blank")
+	}
+
+	if len(line) == 1 {
+		if line[0] == '\n' {
+			return "\r\n", nil
+		}
+
+		return "", fmt.Errorf("Line does not end with LF")
+	}
+
+	lastIndex := len(line) - 1
+	secondLastIndex := lastIndex - 1
+
+	if line[secondLastIndex] == '\r' && line[lastIndex] == '\n' {
+		return line, nil
+	}
+
+	if line[lastIndex] == '\n' {
+		return line[:lastIndex] + "\r\n", nil
+	}
+
+	return "", fmt.Errorf("Line has no ending CRLF or LF")
 }
 
 // parsePrefix parses out the prefix portion of a string.
