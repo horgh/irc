@@ -56,7 +56,7 @@ func (m Message) Encode() (string, error) {
 
 			// This must be the last parameter.
 			if i+1 != len(m.Params) {
-				return "", fmt.Errorf("Parameter problem: ':' or ' ' outside last parameter.")
+				return "", fmt.Errorf("parameter problem: ':' or ' ' outside last parameter")
 			}
 			continue
 		}
@@ -67,7 +67,7 @@ func (m Message) Encode() (string, error) {
 	s += "\r\n"
 
 	if len(s) > MaxLineLength {
-		return "", fmt.Errorf("Message after encoding is too long (%d bytes)",
+		return "", fmt.Errorf("message after encoding is too long (%d bytes)",
 			len(s))
 	}
 
@@ -81,13 +81,13 @@ func (m Message) Encode() (string, error) {
 // line ends with \n.
 func ParseMessage(line string) (Message, error) {
 	if len(line) > MaxLineLength {
-		return Message{}, fmt.Errorf("Line exceeds maximum length: %d vs. %d",
+		return Message{}, fmt.Errorf("line exceeds maximum length: %d vs. %d",
 			len(line), MaxLineLength)
 	}
 
 	line, err := fixLineEnding(line)
 	if err != nil {
-		return Message{}, fmt.Errorf("Line does not have a valid ending: %s", line)
+		return Message{}, fmt.Errorf("line does not have a valid ending: %s", line)
 	}
 
 	message := Message{}
@@ -97,21 +97,21 @@ func ParseMessage(line string) (Message, error) {
 	if line[0] == ':' {
 		prefix, prefixIndex, err := parsePrefix(line)
 		if err != nil {
-			return Message{}, fmt.Errorf("Problem parsing prefix: %s", err.Error())
+			return Message{}, fmt.Errorf("problem parsing prefix: %s", err)
 		}
 		index = prefixIndex
 
 		message.Prefix = prefix
 
 		if index >= len(line) {
-			return Message{}, fmt.Errorf("Malformed message. Prefix only.")
+			return Message{}, fmt.Errorf("malformed message. Prefix only")
 		}
 	}
 
 	// We've either parsed a prefix out or have no prefix.
 	command, index, err := parseCommand(line, index)
 	if err != nil {
-		return Message{}, fmt.Errorf("Problem parsing command: %s", err)
+		return Message{}, fmt.Errorf("problem parsing command: %s", err)
 	}
 
 	message.Command = command
@@ -119,7 +119,7 @@ func ParseMessage(line string) (Message, error) {
 	// May have params.
 	params, index, err := parseParams(line, index)
 	if err != nil {
-		return Message{}, fmt.Errorf("Problem parsing params: %s", err)
+		return Message{}, fmt.Errorf("problem parsing params: %s", err)
 	}
 
 	message.Params = params
@@ -127,7 +127,7 @@ func ParseMessage(line string) (Message, error) {
 	// We should now have CRLF.
 	// index should be pointing at the CR after parsing params.
 	if index != len(line)-2 || line[index] != '\r' || line[index+1] != '\n' {
-		return Message{}, fmt.Errorf("Malformed message. No CRLF found. Looking for end at position %d.", index)
+		return Message{}, fmt.Errorf("malformed message. No CRLF found. Looking for end at position %d", index)
 	}
 
 	return message, nil
@@ -138,7 +138,7 @@ func ParseMessage(line string) (Message, error) {
 // If it ends with only LF, add a CR.
 func fixLineEnding(line string) (string, error) {
 	if len(line) == 0 {
-		return "", fmt.Errorf("Line is blank")
+		return "", fmt.Errorf("line is blank")
 	}
 
 	if len(line) == 1 {
@@ -146,7 +146,7 @@ func fixLineEnding(line string) (string, error) {
 			return "\r\n", nil
 		}
 
-		return "", fmt.Errorf("Line does not end with LF")
+		return "", fmt.Errorf("line does not end with LF")
 	}
 
 	lastIndex := len(line) - 1
@@ -160,7 +160,7 @@ func fixLineEnding(line string) (string, error) {
 		return line[:lastIndex] + "\r\n", nil
 	}
 
-	return "", fmt.Errorf("Line has no ending CRLF or LF")
+	return "", fmt.Errorf("line has no ending CRLF or LF")
 }
 
 // parsePrefix parses out the prefix portion of a string.
@@ -183,7 +183,7 @@ func parsePrefix(line string) (string, int, error) {
 	pos := 0
 
 	if line[pos] != ':' {
-		return "", -1, fmt.Errorf("Line does not start with :")
+		return "", -1, fmt.Errorf("line does not start with ':'")
 	}
 
 	for pos < len(line) {
@@ -197,7 +197,7 @@ func parsePrefix(line string) (string, int, error) {
 		// allow [a-zA-Z0-9]. Nickname can have any except NUL, CR, LF, " ". I
 		// choose to accept anything nicks can.
 		if line[pos] == '\x00' || line[pos] == '\n' || line[pos] == '\r' {
-			return "", -1, fmt.Errorf("Invalid character found: [%q]", line[pos])
+			return "", -1, fmt.Errorf("invalid character found: %q", line[pos])
 		}
 
 		pos++
@@ -205,12 +205,12 @@ func parsePrefix(line string) (string, int, error) {
 
 	// We didn't find a space.
 	if pos == len(line) {
-		return "", -1, fmt.Errorf("No space found")
+		return "", -1, fmt.Errorf("no space found")
 	}
 
 	// Ensure we have at least one character in the prefix.
 	if pos == 1 {
-		return "", -1, fmt.Errorf("Prefix is zero length")
+		return "", -1, fmt.Errorf("prefix is zero length")
 	}
 
 	// Return the prefix without the space.
@@ -249,7 +249,7 @@ func parseCommand(line string, index int) (string, int, error) {
 		// Must be a space or CR.
 		if line[newIndex] != ' ' &&
 			line[newIndex] != '\r' {
-			return "", -1, fmt.Errorf("Unexpected character after command: [%q]",
+			return "", -1, fmt.Errorf("unexpected character after command: %q",
 				line[newIndex])
 		}
 		break
@@ -303,12 +303,12 @@ func parseParams(line string, index int) ([]string, int, error) {
 				// param. However it is common in the wild (ratbox, quassel) for there
 				// to be a single space character before CRLF. Permit it here.
 				// Set index to point after the spurious " " as though we consumed it.
-				if err.Error() == "Param with zero characters" &&
+				if err.Error() == "param with zero characters" &&
 					newIndex+3 == len(line) && line[newIndex] == ' ' &&
 					line[newIndex+1] == '\r' && line[newIndex+2] == '\n' {
 					return params, newIndex + 1, nil
 				}
-				return nil, -1, fmt.Errorf("Problem parsing parameter: %s", err)
+				return nil, -1, fmt.Errorf("problem parsing parameter: %s", err)
 			}
 			newIndex = paramIndex
 
@@ -319,7 +319,7 @@ func parseParams(line string, index int) ([]string, int, error) {
 
 		param, newIndex, err := parseParamLast(line, newIndex)
 		if err != nil {
-			return nil, -1, fmt.Errorf("Problem parsing last parameter: %s", err)
+			return nil, -1, fmt.Errorf("problem parsing last parameter: %s", err)
 		}
 
 		params = append(params, param)
@@ -327,7 +327,7 @@ func parseParams(line string, index int) ([]string, int, error) {
 		return params, newIndex, nil
 	}
 
-	return nil, -1, fmt.Errorf("Malformed params. Not terminated properly.")
+	return nil, -1, fmt.Errorf("malformed params. Not terminated properly")
 }
 
 // parseParam parses out a single parameter term.
@@ -340,13 +340,13 @@ func parseParam(line string, index int) (string, int, error) {
 	newIndex := index
 
 	if line[newIndex] != ' ' {
-		return "", -1, fmt.Errorf("Malformed param. No leading space.")
+		return "", -1, fmt.Errorf("malformed param. No leading space")
 	}
 
 	newIndex++
 
 	if len(line) == newIndex {
-		return "", -1, fmt.Errorf("Malformed parameter. End of string after space.")
+		return "", -1, fmt.Errorf("malformed parameter. End of string after space")
 	}
 
 	// SPACE ":" trailing
@@ -354,7 +354,7 @@ func parseParam(line string, index int) (string, int, error) {
 		newIndex++
 
 		if len(line) == newIndex {
-			return "", -1, fmt.Errorf("Malformed parameter. End of string after :.")
+			return "", -1, fmt.Errorf("malformed parameter. End of string after ':'")
 		}
 
 		// It is valid for there to be no characters.
@@ -395,7 +395,7 @@ func parseParam(line string, index int) (string, int, error) {
 
 	// Must have at least one character in this case. See grammar for 'middle'.
 	if paramIndexStart == newIndex {
-		return "", -1, fmt.Errorf("Param with zero characters")
+		return "", -1, fmt.Errorf("param with zero characters")
 	}
 
 	return line[paramIndexStart:newIndex], newIndex, nil
@@ -408,7 +408,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 	newIndex := index
 
 	if line[newIndex] != ' ' {
-		return "", -1, fmt.Errorf("Malformed param. No leading space.")
+		return "", -1, fmt.Errorf("malformed param. No leading space")
 	}
 
 	newIndex++
@@ -417,7 +417,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 	// parameter may be blank, there should at least be CRLF remaining.
 	// It's valid for there to be no characters.
 	if newIndex == len(line) {
-		return "", -1, fmt.Errorf("Malformed param. Space ends message.")
+		return "", -1, fmt.Errorf("malformed param. Space ends message")
 	}
 
 	// It is valid for there to be no :
@@ -426,7 +426,7 @@ func parseParamLast(line string, index int) (string, int, error) {
 
 		// See above. We should have at least CRLF.
 		if newIndex == len(line) {
-			return "", -1, fmt.Errorf("Malformed param. : ends message.")
+			return "", -1, fmt.Errorf("malformed param. : ends message")
 		}
 	}
 

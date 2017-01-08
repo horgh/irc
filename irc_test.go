@@ -106,6 +106,15 @@ func TestParseMessage(t *testing.T) {
 		// Blank topic parameter is used to unset the topic.
 		{":nick!user@host TOPIC #test :\r\n", "nick!user@host", "TOPIC", []string{"#test", ""},
 			false},
+
+		{":nick!user@host MODE #test +o :blah\r\n", "nick!user@host", "MODE",
+			[]string{"#test", "+o", "blah"}, false},
+
+		{":nick!user@host MODE #test +o blah1 :blah\r\n", "nick!user@host", "MODE",
+			[]string{"#test", "+o", "blah1", "blah"}, false},
+
+		{":nick!user@host MODE #test +o :blah1 blah\r\n", "nick!user@host", "MODE",
+			[]string{"#test", "+o", "blah1 blah"}, false},
 	}
 
 	for _, test := range tests {
