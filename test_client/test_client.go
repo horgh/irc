@@ -10,11 +10,11 @@ import (
 	"os"
 	"strings"
 
-	"summercat.com/config"
-	"summercat.com/irc/client"
-	_ "summercat.com/irc/duckduckgo"
-	_ "summercat.com/irc/oper"
-	_ "summercat.com/irc/recordips"
+	"github.com/horgh/config"
+	"github.com/horgh/irc/client"
+	_ "github.com/horgh/irc/duckduckgo"
+	_ "github.com/horgh/irc/oper"
+	_ "github.com/horgh/irc/recordips"
 )
 
 func main() {

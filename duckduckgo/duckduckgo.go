@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/horgh/irc"
+	"github.com/horgh/irc/client"
 	"golang.org/x/net/html"
-	"summercat.com/irc"
-	"summercat.com/irc/client"
 )
 
 // SearchResult holds a single parsed out search result.

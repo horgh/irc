@@ -7,8 +7,8 @@ package oper
 import (
 	"log"
 
-	"summercat.com/irc"
-	"summercat.com/irc/client"
+	"github.com/horgh/irc"
+	"github.com/horgh/irc/client"
 )
 
 func init() {

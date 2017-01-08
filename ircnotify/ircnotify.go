@@ -10,7 +10,7 @@ import (
 	"log"
 	"os"
 
-	"summercat.com/irc/client"
+	"github.com/horgh/irc/client"
 )
 
 func main() {

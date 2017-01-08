@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"summercat.com/iptables-manage/cidrlist"
-	"summercat.com/irc"
-	"summercat.com/irc/client"
+	"github.com/horgh/iptables-manage/cidrlist"
+	"github.com/horgh/irc"
+	"github.com/horgh/irc/client"
 )
 
 func init() {

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"summercat.com/irc"
+	"github.com/horgh/irc"
 )
 
 // Conn holds an IRC connection.
