@@ -1,7 +1,4 @@
-/*
- * Package client is an IRC client library.
- */
-
+// Package client is an IRC client library.
 package client
 
 import (
@@ -106,7 +103,7 @@ func (c *Conn) Connect() error {
 func (c Conn) read() (string, error) {
 	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
-		return "", fmt.Errorf("Unable to set deadline: %s", err)
+		return "", fmt.Errorf("unable to set deadline: %s", err)
 	}
 
 	line, err := c.rw.ReadString('\n')
@@ -128,7 +125,8 @@ func (c Conn) ReadMessage() (irc.Message, error) {
 
 	m, err := irc.ParseMessage(buf)
 	if err != nil {
-		return irc.Message{}, fmt.Errorf("Unable to parse message: %s: %s", buf, err)
+		return irc.Message{}, fmt.Errorf("unable to parse message: %s: %s", buf,
+			err)
 	}
 
 	return m, nil
@@ -138,7 +136,7 @@ func (c Conn) ReadMessage() (irc.Message, error) {
 func (c Conn) write(s string) error {
 	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
 	if err != nil {
-		return fmt.Errorf("Unable to set deadline: %s", err)
+		return fmt.Errorf("unable to set deadline: %s", err)
 	}
 
 	sz, err := c.rw.WriteString(s)
@@ -147,12 +145,12 @@ func (c Conn) write(s string) error {
 	}
 
 	if sz != len(s) {
-		return fmt.Errorf("Short write")
+		return fmt.Errorf("short write")
 	}
 
 	err = c.rw.Flush()
 	if err != nil {
-		return fmt.Errorf("Flush error: %s", err)
+		return fmt.Errorf("flush error: %s", err)
 	}
 
 	log.Printf("Sent: %s", strings.TrimRight(s, "\r\n"))
@@ -164,7 +162,7 @@ func (c Conn) write(s string) error {
 func (c Conn) WriteMessage(m irc.Message) error {
 	buf, err := m.Encode()
 	if err != nil {
-		return fmt.Errorf("Unable to encode message: %s", err)
+		return fmt.Errorf("unable to encode message: %s", err)
 	}
 
 	return c.write(buf)
@@ -177,7 +175,7 @@ func (c *Conn) greet() error {
 		Params:  []string{c.Nick},
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to send NICK: %s", err)
+		return fmt.Errorf("failed to send NICK: %s", err)
 	}
 
 	err = c.WriteMessage(irc.Message{
@@ -185,7 +183,7 @@ func (c *Conn) greet() error {
 		Params:  []string{c.Ident, "0", "*", c.Name},
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to send NICK: %s", err)
+		return fmt.Errorf("failed to send NICK: %s", err)
 	}
 
 	for {
@@ -225,7 +223,7 @@ func (c *Conn) Loop() error {
 			message := irc.Message{Command: "PONG", Params: []string{msg.Params[0]}}
 			err = c.WriteMessage(message)
 			if err != nil {
-				return fmt.Errorf("Failed to send PONG: %s", err)
+				return fmt.Errorf("failed to send PONG: %s", err)
 			}
 			log.Printf("Sent PONG.")
 		}
