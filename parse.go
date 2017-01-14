@@ -116,14 +116,17 @@ func (m Message) Encode() (string, error) {
 //
 // line ends with \n.
 func ParseMessage(line string) (Message, error) {
-	if len(line) > MaxLineLength {
-		return Message{}, fmt.Errorf("line exceeds maximum length: %d vs. %d",
-			len(line), MaxLineLength)
-	}
-
 	line, err := fixLineEnding(line)
 	if err != nil {
 		return Message{}, fmt.Errorf("line does not have a valid ending: %s", line)
+	}
+
+	truncated := false
+
+	if len(line) > MaxLineLength {
+		truncated = true
+
+		line = line[0:MaxLineLength-2] + "\r\n"
 	}
 
 	message := Message{}
@@ -164,6 +167,10 @@ func ParseMessage(line string) (Message, error) {
 	// index should be pointing at the CR after parsing params.
 	if index != len(line)-2 || line[index] != '\r' || line[index+1] != '\n' {
 		return Message{}, fmt.Errorf("malformed message. No CRLF found. Looking for end at position %d", index)
+	}
+
+	if truncated {
+		return message, ErrTruncated
 	}
 
 	return message, nil

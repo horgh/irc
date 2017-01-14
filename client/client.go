@@ -124,7 +124,7 @@ func (c Conn) ReadMessage() (irc.Message, error) {
 	}
 
 	m, err := irc.ParseMessage(buf)
-	if err != nil {
+	if err != nil && err != irc.ErrTruncated {
 		return irc.Message{}, fmt.Errorf("unable to parse message: %s: %s", buf,
 			err)
 	}
