@@ -161,7 +161,7 @@ func (c Conn) write(s string) error {
 // WriteMessage writes an IRC message to the connection.
 func (c Conn) WriteMessage(m irc.Message) error {
 	buf, err := m.Encode()
-	if err != nil {
+	if err != nil && err != irc.ErrTruncated {
 		return fmt.Errorf("unable to encode message: %s", err)
 	}
 
