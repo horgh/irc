@@ -2,6 +2,7 @@
 package irc
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -9,6 +10,10 @@ import (
 // MaxLineLength is the maximum protocol message line length.
 // From RFC 2812 section 2.3. It includes CRLF.
 const MaxLineLength = 512
+
+// ErrTruncated is the error returned by Encode if the message gets truncated
+// due to encoding to more than MaxLineLength bytes.
+var ErrTruncated = errors.New("message truncated")
 
 // Message holds a protocol message.
 // See section 2.3.1 in RFC 2812.
@@ -41,24 +46,56 @@ func (m Message) Encode() (string, error) {
 
 	s += m.Command
 
+	if len(s)+2 > MaxLineLength {
+		return "", fmt.Errorf("message with only prefix/command is too long")
+	}
+
+	truncated := false
+
 	for i, param := range m.Params {
 		// If we have a ":" or " ", then we need to prefix the parameter with ":".
-		// This is only valid for the last ("trailing") parameter.
+		// This happening is only valid for the last ("trailing") parameter.
 		//
 		// Also, the trailing parameter may be an empty string. Ensure it shows up
 		// by adding a :. This can happen e.g. from ircd-ratbox in TOPIC unset
-		// command // (server protocol). Modern IRC and ircv3 both specify this as
+		// command (server protocol). Modern IRC and ircv3 both specify this as
 		// valid (that the last parameter may be empty). Also, RFC 2812's grammar
 		// permits it. The ":" is optional only if this is the 15th parameter. But
 		// it is valid.
 		if idx := strings.IndexAny(param, ": "); idx != -1 || len(param) == 0 {
-			s += " :" + param
+			param = ":" + param
 
 			// This must be the last parameter.
 			if i+1 != len(m.Params) {
 				return "", fmt.Errorf("parameter problem: ':' or ' ' outside last parameter")
 			}
-			continue
+		}
+
+		// If we add the parameter as is, do we exceed the maximum length?
+		if len(s)+1+len(param)+2 > MaxLineLength {
+			// Two cases: Either we can truncate the parameter and include a portion
+			// of it, or the parameter is too short to include at all. If it is too
+			// short to include, then don't add the space separator either. In the
+			// cases where this is not the 15th parameter having a trailing space is
+			// not valid, but even in the case of the 15th parameter, we don't need
+			// it.
+
+			// Claim the space separator (1) and ending (2) as used. Then we can tell
+			// how many bytes are available for the parameter as it is.
+			lengthUsed := len(s) + 1 + 2
+			lengthAvailable := MaxLineLength - lengthUsed
+
+			// Note: If we prefixed the parameter with : then it's possible we include
+			// only the : here (if length available is 1). This is perhaps a little
+			// odd but I don't think problematic.
+
+			if lengthAvailable > 0 {
+				s += " " + param[0:lengthAvailable]
+			}
+
+			truncated = true
+
+			break
 		}
 
 		s += " " + param
@@ -66,9 +103,8 @@ func (m Message) Encode() (string, error) {
 
 	s += "\r\n"
 
-	if len(s) > MaxLineLength {
-		return "", fmt.Errorf("message after encoding is too long (%d bytes)",
-			len(s))
+	if truncated {
+		return s, ErrTruncated
 	}
 
 	return s, nil

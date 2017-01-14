@@ -1,8 +1,6 @@
 package irc
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestParseMessage(t *testing.T) {
 	tests := []struct {
@@ -115,6 +113,12 @@ func TestParseMessage(t *testing.T) {
 
 		{":nick!user@host MODE #test +o :blah1 blah\r\n", "nick!user@host", "MODE",
 			[]string{"#test", "+o", "blah1 blah"}, false},
+
+		{":nick!user@host PRIVMSG #test \r\n", "nick!user@host", "PRIVMSG",
+			[]string{"#test"}, false},
+
+		{":nick!user@host PRIVMSG #test :\r\n", "nick!user@host", "PRIVMSG",
+			[]string{"#test", ""}, false},
 	}
 
 	for _, test := range tests {
@@ -420,6 +424,84 @@ func TestEncodeMessage(t *testing.T) {
 			":nick TOPIC #test ::\r\n",
 			true,
 		},
+
+		// A message that encodes to longer than MaxLineLength (512) bytes
+		// The encoded length of this message would be
+		// 1+7+1 + 4+1 + 5+1 + 530 + 2 (crlf) = 552 bytes
+		// Truncates to 512.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				// Second parameter is 530 bytes
+				Params: []string{"#test", "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"},
+			},
+			":nick PRIVMSG #test abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuv\r\n",
+			false,
+		},
+
+		// Another message that is too long to encode as is. Truncates.
+		//
+		// This time the final parameter is 2 bytes long and has no prefix, and
+		// there is no space to include either of them. This is to test what
+		// happens when we truncate in the situation where we drop the entire last
+		// parameter.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				Params:  []string{"#test", "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstz", "wx"},
+			},
+			// Length becomes 511 bytes. Not 512 because we do not include the space
+			// that would separate the parameter which we cannot include at all.
+			":nick PRIVMSG #test abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstz\r\n",
+			false,
+		},
+
+		// Message is too long to encode.
+		//
+		// In this case the last parameter is 1 byte, and it has a prefix. Again
+		// there is no space to include any of it. This is again to test behaviour
+		// when we drop the whole last parameter.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				Params:  []string{"#test", "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstz", ":"},
+			},
+			// Length becomes 511 bytes. Not 512 because we do not include the space
+			// that would separate the parameter which we cannot include at all.
+			":nick PRIVMSG #test abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstz\r\n",
+			false,
+		},
+
+		// Message is too long to encode.
+		//
+		// In this case the last parameter is 1 byte, and it has a prefix. The
+		// difference in this case is we can include just the prefix.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "nick",
+				Params:  []string{"#test", "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst", ":"},
+			},
+			":nick PRIVMSG #test abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst :\r\n",
+			false,
+		},
+
+		// A message that is too long to encode where only the prefix and the
+		// command are alone enough to exceed the length. In this case it does
+		// not make sense to truncate. Error out.
+		{
+			Message{
+				Command: "PRIVMSG",
+				// Prefix is 530 bytes
+				Prefix: "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz",
+				Params: []string{},
+			},
+			"",
+			false,
+		},
 	}
 
 	for _, test := range tests {
@@ -429,6 +511,16 @@ func TestEncodeMessage(t *testing.T) {
 				t.Errorf("Encode(%s) failed but should succeed: %s", test.input, err)
 				continue
 			}
+
+			// When we truncate, check we received what we expected.
+			if err == ErrTruncated {
+				if buf != test.output {
+					t.Errorf("Encode(%s) truncated to %s, wanted %s", test.input, buf,
+						test.output)
+					continue
+				}
+			}
+
 			continue
 		}
 
