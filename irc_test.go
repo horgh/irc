@@ -12,14 +12,23 @@ func TestParseMessage(t *testing.T) {
 	}{
 		{":irc PRIVMSG\r\n", "irc", "PRIVMSG", []string{}, true},
 
+		// No CRLF
 		{":irc PRIVMSG", "", "", []string{}, false},
 
+		// No CRLF
 		{":irc PRIVMSG one", "", "", []string{}, false},
 
+		// No command.
 		{":irc \r\n", "", "", []string{}, false},
+
 		{"PRIVMSG\r\n", "", "PRIVMSG", []string{}, true},
+
 		{"PRIVMSG :hi there\r\n", "", "PRIVMSG", []string{"hi there"}, true},
+
+		// Empty prefix.
 		{": PRIVMSG \r\n", "", "", []string{}, false},
+
+		// Stray \r.
 		{"ir\rc\r\n", "", "", []string{}, false},
 
 		{":irc PRIVMSG blah\r\n", "irc", "PRIVMSG", []string{"blah"}, true},
@@ -30,8 +39,13 @@ func TestParseMessage(t *testing.T) {
 		// However I permit it as we see trailing space in the wild frequently.
 		{":irc PRIVMSG \r\n", "irc", "PRIVMSG", []string{}, true},
 
+		// Invalid command.
 		{":irc @01\r\n", "", "", []string{}, false},
+
+		// No command.
 		{":irc \r\n", "", "", []string{}, false},
+
+		// Space before command.
 		{":irc  PRIVMSG\r\n", "", "", []string{}, false},
 
 		{":irc 000 hi\r\n", "irc", "000", []string{"hi"}, true},
@@ -78,6 +92,7 @@ func TestParseMessage(t *testing.T) {
 		// While this violates the grammar, I permit it now anyway.
 		{":irc 000 0 1 \r\n", "irc", "000", []string{"0", "1"}, true},
 
+		// NUL byte is invalid.
 		{":irc 000 a\x00 1 \r\n", "", "", []string{}, false},
 
 		// : inside a middle. Valid.
@@ -96,10 +111,10 @@ func TestParseMessage(t *testing.T) {
 		{":irc 000 hi:hi :no no :yes yes\n", "irc", "000", []string{"hi:hi", "no no :yes yes"},
 			true},
 
-		// Fails and SHOULD actually. Trailing whitespace is not valid here.
-		// Ratbox currently does send messages like this however.
-		{":irc MODE #test +o user  \r\n", "irc", "MODE", []string{"+o", "user"},
-			false},
+		// Trailing whitespace is not valid here. Ratbox currently does send
+		// messages like this however.
+		{":irc MODE #test +o user  \r\n", "irc", "MODE",
+			[]string{"#test", "+o", "user"}, true},
 
 		// Blank topic parameter is used to unset the topic.
 		{":nick!user@host TOPIC #test :\r\n", "nick!user@host", "TOPIC", []string{"#test", ""},
@@ -150,6 +165,11 @@ func TestParseMessage(t *testing.T) {
 			[]string{"#test", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ""},
 			false,
 		},
+
+		// Trailing whitespace is not valid. However we accept it as we see it in
+		// the wild. This tests having lots of it.
+		{":irc MODE #test +o user          \r\n", "irc", "MODE",
+			[]string{"#test", "+o", "user"}, true},
 	}
 
 	for _, test := range tests {
@@ -357,26 +377,29 @@ func TestParseParams(t *testing.T) {
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 :\r\n", 8, []string{"1", "2",
 			"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", ""}, 38},
 
-		// Malformed because \r should not appear there.
-		{":irc 000 \r\r\n", 8, nil, -1},
+		// Malformed because \r should not appear there. However, parameter parsing
+		// accepts this message (as having no parameters), and stops at the first
+		// \r. Full message parsing will catch this as invalid.
+		{":irc 000 \r\r\n", 8, []string{}, 9},
 
 		// Must not be blank unless last param.
-		// While this violates the grammar, I permit it now anyway.
+		// While this violates the grammar, I permit it because we see it in the
+		// wild.
 		{":irc 000 \r\n", 8, []string{}, 9},
 
 		{":irc 000 0a 1b\r\n", 8, []string{"0a", "1b"}, 14},
 
 		// If we have a space then there must be a parameter (unless it's the
-		// 15th).
-		// While this violates the grammar, I permit it now anyway.
+		// 15th). While this violates the grammar, I permit it as we see it
+		// frequently in the wild.
 		{":irc 000 0 1 \r\n", 8, []string{"0", "1"}, 13},
 
-		// This is a malformed message but the parameter parsing won't catch
-		// it. Let overall message parsing get it.
+		// This is a malformed message (NUL byte) but the parameter parsing won't
+		// catch it because we stop at the NUL byte. Full message parsing catches
+		// it.
 		{":irc 000 a\x00 1 \r\n", 8, []string{"a"}, 10},
 
-		// This is a malformed message.
-		// However I allow it. See comment in parseParam() for why.
+		// This parameter is valid as : is not the first character.
 		{":irc 000 a:bc\r\n", 8, []string{"a:bc"}, 13},
 	}
 

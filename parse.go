@@ -15,6 +15,10 @@ const MaxLineLength = 512
 // due to encoding to more than MaxLineLength bytes.
 var ErrTruncated = errors.New("message truncated")
 
+// It is not always valid for there to be a parameter with zero characters. If
+// there is one, it should have a ':' prefix.
+var errEmptyParam = errors.New("parameter with zero characters")
+
 // Message holds a protocol message.
 // See section 2.3.1 in RFC 2812.
 type Message struct {
@@ -344,15 +348,20 @@ func parseParams(line string, index int) ([]string, int, error) {
 			if err != nil {
 				// At this point we should always have at least one character in the
 				// param. However it is common in the wild (ratbox, quassel) for there
-				// to be a single space character before CRLF. Permit it here.
-				// Set index to point after the spurious " " as though we consumed it.
-				if err.Error() == "param with zero characters" &&
-					newIndex+3 == len(line) && line[newIndex] == ' ' &&
-					line[newIndex+1] == '\r' && line[newIndex+2] == '\n' {
-					return params, newIndex + 1, nil
+				// to be space character(s) before CRLF. Permit that here.
+				//
+				// We return index pointing after the problem spaces as though we
+				// consumed them. We will be pointing at the CR.
+				if err == errEmptyParam {
+					crIndex := isTrailingWhitespace(line, newIndex)
+					if crIndex != -1 {
+						return params, crIndex, nil
+					}
 				}
+
 				return nil, -1, fmt.Errorf("problem parsing parameter: %s", err)
 			}
+
 			newIndex = paramIndex
 
 			params = append(params, param)
@@ -438,10 +447,32 @@ func parseParam(line string, index int) (string, int, error) {
 
 	// Must have at least one character in this case. See grammar for 'middle'.
 	if paramIndexStart == newIndex {
-		return "", -1, fmt.Errorf("param with zero characters")
+		return "", -1, errEmptyParam
 	}
 
 	return line[paramIndexStart:newIndex], newIndex, nil
+}
+
+// If the string from the given position to the end contains nothing but spaces
+// until we reach CRLF, return the position of CR.
+//
+// This is so we can recognize stray trailing spaces and discard them. They are
+// often invalid, but we want to be liberal in what we accept.
+func isTrailingWhitespace(line string, index int) int {
+	for i := index; i < len(line); i++ {
+		if line[i] == ' ' {
+			continue
+		}
+
+		if line[i] == '\r' {
+			return i
+		}
+
+		return -1
+	}
+
+	// We didn't hit \r. Line was all spaces.
+	return -1
 }
 
 // parseParamLast takes the final case when parsing params.
