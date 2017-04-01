@@ -58,9 +58,9 @@ func Hook(conn *client.Conn, message irc.Message) {
 	nick := noticePieces[4]
 	ip := noticePieces[7]
 
-	comment := fmt.Sprintf("%s @ %s", nick, time.Now().Format(time.RFC1123))
+	comment := fmt.Sprintf("IRC: %s", nick)
 
-	err := cidrlist.RecordIP(ipFile, ip, comment)
+	err := cidrlist.RecordIP(ipFile, ip, comment, time.Now())
 	if err != nil {
 		log.Printf("record_connecting_ips: Unable to record IP: %s", err)
 	}
