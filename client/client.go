@@ -43,6 +43,9 @@ type Client struct {
 	//
 	// TODO(horgh): This doesn't really seem to belong here.
 	Config map[string]string
+
+	// Track whether we've successfully registered.
+	registered bool
 }
 
 // timeoutConnect is how long we wait for connection attempts to time out.
@@ -69,6 +72,9 @@ func New(nick, name, ident, host string, port int, tls bool) *Client {
 
 // Close cleans up the client. It closes the connection.
 func (c *Client) Close() error {
+	c.registered = false
+	c.rw = nil
+
 	if c.conn != nil {
 		err := c.conn.Close()
 		c.conn = nil
@@ -77,7 +83,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Connect attempts to connect to a server.
+// Connect opens a new connection to the server.
 func (c *Client) Connect() error {
 	if c.tls {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
@@ -92,7 +98,7 @@ func (c *Client) Connect() error {
 		}
 		c.conn = conn
 		c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-		return c.greet()
+		return nil
 	}
 
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.host, c.port),
@@ -102,7 +108,7 @@ func (c *Client) Connect() error {
 	}
 	c.conn = conn
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-	return c.greet()
+	return nil
 }
 
 // ReadMessage reads a line from the connection and parses it as an IRC message.
@@ -195,6 +201,7 @@ func (c *Client) greet() error {
 		// way I can tell from RFC 1459 that we've completed registration is by
 		// looking for RPL_LUSERCLIENT which apparently must be sent (section 8.5).
 		if msg.Command == irc.ReplyWelcome {
+			c.registered = true
 			return nil
 		}
 	}
@@ -242,6 +249,11 @@ func (c *Client) hooks(message irc.Message) {
 // IsConnected checks whether the client is connected
 func (c *Client) IsConnected() bool {
 	return c.conn != nil
+}
+
+// IsRegistered checks whether the client is registered.
+func (c *Client) IsRegistered() bool {
+	return c.registered
 }
 
 // Register sends the client's registration/greeting. This consists of NICK and
