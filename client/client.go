@@ -45,10 +45,6 @@ type Conn struct {
 	// connected: Whether currently connected or not
 	connected bool
 
-	// ActualNick: The nick we have if we are currently connected. The requested
-	// nick may not always be available.
-	ActualNick string
-
 	// sentQUIT tracks whether we sent a QUIT message.
 	sentQUIT bool
 }
@@ -158,7 +154,11 @@ func (c Conn) write(s string) error {
 	return nil
 }
 
-// greet runs connection initiation (NICK, USER)
+// greet runs connection initiation (NICK, USER) and then reads messages until
+// it sees it worked.
+//
+// Currently it will wait until it times out reading a message before reporting
+// failure.
 func (c *Conn) greet() error {
 	if err := c.SendGreeting(); err != nil {
 		return err
@@ -172,9 +172,12 @@ func (c *Conn) greet() error {
 
 		c.hooks(msg)
 
-		// Look for numeric reply 1. This is RPL_WELCOME welcoming our connection.
-		if msg.Command == "001" {
-			c.ActualNick = c.Nick
+		// RPL_WELCOME tells us we've registered.
+		//
+		// Note RPL_WELCOME is not defined in RFC 1459. It is in RFC 2812. The best
+		// way I can tell from RFC 1459 that we've completed registration is by
+		// looking for RPL_LUSERCLIENT which apparently must be sent (section 8.5).
+		if msg.Command == irc.ReplyWelcome {
 			return nil
 		}
 	}

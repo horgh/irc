@@ -7,9 +7,14 @@ import (
 	"strings"
 )
 
-// MaxLineLength is the maximum protocol message line length.
-// From RFC 2812 section 2.3. It includes CRLF.
-const MaxLineLength = 512
+const (
+	// MaxLineLength is the maximum protocol message line length.
+	// From RFC 2812 section 2.3. It includes CRLF.
+	MaxLineLength = 512
+
+	// ReplyWelcome is the RPL_WELCOME response numeric.
+	ReplyWelcome = "001"
+)
 
 // ErrTruncated is the error returned by Encode if the message gets truncated
 // due to encoding to more than MaxLineLength bytes.
