@@ -27,7 +27,7 @@ type Conn struct {
 	// Name is the realname to use.
 	Name string
 
-	// Ident is the ident portion to use.
+	// Ident is the ident to use.
 	Ident string
 
 	// Host is the IP/hostname of the IRC server to connect to.
@@ -40,13 +40,9 @@ type Conn struct {
 	TLS bool
 
 	// Config holds the parsed config file data.
+	//
+	// TODO(horgh): This doesn't really seem to belong here.
 	Config map[string]string
-
-	// connected: Whether currently connected or not
-	connected bool
-
-	// sentQUIT tracks whether we sent a QUIT message.
-	sentQUIT bool
 }
 
 // timeoutConnect is how long we wait for connection attempts to time out.
@@ -58,6 +54,16 @@ const timeoutTime = 5 * time.Minute
 // Hooks are functions to call for each message. Packages can take actions
 // this way.
 var Hooks []func(*Conn, irc.Message)
+
+// Close cleans up the client. It closes the connection.
+func (c *Conn) Close() error {
+	if c.conn != nil {
+		err := c.conn.Close()
+		c.conn = nil
+		return err
+	}
+	return nil
+}
 
 // Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
@@ -73,18 +79,17 @@ func (c *Conn) Connect() error {
 			return err
 		}
 		c.conn = conn
-	} else {
-		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
-			timeoutConnect)
-		if err != nil {
-			return err
-		}
-		c.conn = conn
+		c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
+		return c.greet()
 	}
 
-	c.connected = true
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+		timeoutConnect)
+	if err != nil {
+		return err
+	}
+	c.conn = conn
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-
 	return c.greet()
 }
 
@@ -209,7 +214,7 @@ func (c *Conn) SendGreeting() error {
 // Hook events will fire.
 func (c *Conn) Loop() error {
 	for {
-		if !c.connected {
+		if !c.IsConnected() {
 			return c.Connect()
 		}
 
@@ -225,11 +230,9 @@ func (c *Conn) Loop() error {
 		}
 
 		if msg.Command == "ERROR" {
-			// After sending QUIT, the server acknowledges it with an ERROR
-			// command.
-			if c.sentQUIT {
-				return c.conn.Close()
-			}
+			// Error terminates the connection. We get it as an acknowledgement after
+			// sending a QUIT.
+			return c.Close()
 		}
 
 		c.hooks(msg)
@@ -241,6 +244,11 @@ func (c *Conn) hooks(message irc.Message) {
 	for _, hook := range Hooks {
 		hook(c, message)
 	}
+}
+
+// IsConnected checks whether the client is connected
+func (c *Conn) IsConnected() bool {
+	return c.conn != nil
 }
 
 // Pong sends a PONG in response to the given PING message.
@@ -301,7 +309,6 @@ func (c *Conn) Quit(message string) error {
 		return err
 	}
 
-	c.sentQUIT = true
 	return nil
 }
 
