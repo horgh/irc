@@ -65,44 +65,36 @@ var Hooks []func(*Conn, irc.Message)
 
 // Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
-	var err error
-
 	if c.TLS {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
-		c.conn, err = tls.DialWithDialer(dialer, "tcp",
+		conn, err := tls.DialWithDialer(dialer, "tcp",
 			fmt.Sprintf("%s:%d", c.Host, c.Port),
 			&tls.Config{
 				// Typically IRC servers won't have valid certs.
 				InsecureSkipVerify: true,
 			})
-
 		if err != nil {
 			return err
 		}
+		c.conn = conn
 	} else {
-		c.conn, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
 			timeoutConnect)
-
 		if err != nil {
 			return err
 		}
+		c.conn = conn
 	}
 
 	c.connected = true
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 
-	err = c.greet()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.greet()
 }
 
 // read reads a line from the connection.
 func (c Conn) read() (string, error) {
-	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
-	if err != nil {
+	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
 		return "", fmt.Errorf("unable to set deadline: %s", err)
 	}
 
@@ -134,8 +126,7 @@ func (c Conn) ReadMessage() (irc.Message, error) {
 
 // write writes a string to the connection
 func (c Conn) write(s string) error {
-	err := c.conn.SetDeadline(time.Now().Add(timeoutTime))
-	if err != nil {
+	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
 		return fmt.Errorf("unable to set deadline: %s", err)
 	}
 
@@ -148,8 +139,7 @@ func (c Conn) write(s string) error {
 		return fmt.Errorf("short write")
 	}
 
-	err = c.rw.Flush()
-	if err != nil {
+	if err := c.rw.Flush(); err != nil {
 		return fmt.Errorf("flush error: %s", err)
 	}
 
@@ -170,19 +160,17 @@ func (c Conn) WriteMessage(m irc.Message) error {
 
 // greet runs connection initiation (NICK, USER)
 func (c *Conn) greet() error {
-	err := c.WriteMessage(irc.Message{
+	if err := c.WriteMessage(irc.Message{
 		Command: "NICK",
 		Params:  []string{c.Nick},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to send NICK: %s", err)
 	}
 
-	err = c.WriteMessage(irc.Message{
+	if err := c.WriteMessage(irc.Message{
 		Command: "USER",
 		Params:  []string{c.Ident, "0", "*", c.Name},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to send NICK: %s", err)
 	}
 
@@ -210,8 +198,7 @@ func (c *Conn) greet() error {
 func (c *Conn) Loop() error {
 	for {
 		if !c.connected {
-			err := c.Connect()
-			return err
+			return c.Connect()
 		}
 
 		msg, err := c.ReadMessage()
@@ -221,8 +208,7 @@ func (c *Conn) Loop() error {
 
 		if msg.Command == "PING" {
 			message := irc.Message{Command: "PONG", Params: []string{msg.Params[0]}}
-			err = c.WriteMessage(message)
-			if err != nil {
+			if err := c.WriteMessage(message); err != nil {
 				return fmt.Errorf("failed to send PONG: %s", err)
 			}
 			log.Printf("Sent PONG.")
@@ -261,7 +247,6 @@ func (c *Conn) Join(name string) error {
 // If the message is too long for a single line, then it will be split over
 // several lines.
 func (c *Conn) Message(target string, message string) error {
-
 	// 512 is the maximum IRC protocol length.
 	// However, user and host takes up some of that. Let's cut down a bit.
 	// This is arbitrary.
@@ -277,11 +262,10 @@ func (c *Conn) Message(target string, message string) error {
 		}
 		piece := message[i:endIndex]
 
-		err := c.WriteMessage(irc.Message{
+		if err := c.WriteMessage(irc.Message{
 			Command: "PRIVMSG",
 			Params:  []string{target, piece},
-		})
-		if err != nil {
+		}); err != nil {
 			return nil
 		}
 	}
@@ -293,14 +277,15 @@ func (c *Conn) Message(target string, message string) error {
 //
 // We track when we send this as we expect an ERROR message in response.
 func (c *Conn) Quit(message string) error {
-	err := c.WriteMessage(irc.Message{
+	if err := c.WriteMessage(irc.Message{
 		Command: "QUIT",
 		Params:  []string{message},
-	})
-	if err == nil {
-		c.sentQUIT = true
+	}); err != nil {
+		return err
 	}
-	return err
+
+	c.sentQUIT = true
+	return nil
 }
 
 // Oper sends an OPER command
