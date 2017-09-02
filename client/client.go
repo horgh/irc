@@ -207,9 +207,8 @@ func (c *Conn) Loop() error {
 		}
 
 		if msg.Command == "PING" {
-			message := irc.Message{Command: "PONG", Params: []string{msg.Params[0]}}
-			if err := c.WriteMessage(message); err != nil {
-				return fmt.Errorf("failed to send PONG: %s", err)
+			if err := c.Pong(msg); err != nil {
+				return err
 			}
 			log.Printf("Sent PONG.")
 		}
@@ -225,6 +224,14 @@ func (c *Conn) Loop() error {
 
 		c.hooks(msg)
 	}
+}
+
+// Pong sends a PONG in response to the given PING message.
+func (c *Conn) Pong(ping irc.Message) error {
+	return c.WriteMessage(irc.Message{
+		Command: "PONG",
+		Params:  []string{ping.Params[0]},
+	})
 }
 
 // hooks calls each registered IRC package hook.
