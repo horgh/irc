@@ -160,18 +160,8 @@ func (c Conn) write(s string) error {
 
 // greet runs connection initiation (NICK, USER)
 func (c *Conn) greet() error {
-	if err := c.WriteMessage(irc.Message{
-		Command: "NICK",
-		Params:  []string{c.Nick},
-	}); err != nil {
-		return fmt.Errorf("failed to send NICK: %s", err)
-	}
-
-	if err := c.WriteMessage(irc.Message{
-		Command: "USER",
-		Params:  []string{c.Ident, "0", "*", c.Name},
-	}); err != nil {
-		return fmt.Errorf("failed to send NICK: %s", err)
+	if err := c.SendGreeting(); err != nil {
+		return err
 	}
 
 	for {
@@ -188,6 +178,25 @@ func (c *Conn) greet() error {
 			return nil
 		}
 	}
+}
+
+// SendGreeting sends the client's greeting. This consists of NICK and USER.
+func (c *Conn) SendGreeting() error {
+	if err := c.WriteMessage(irc.Message{
+		Command: "NICK",
+		Params:  []string{c.Nick},
+	}); err != nil {
+		return fmt.Errorf("failed to send NICK: %s", err)
+	}
+
+	if err := c.WriteMessage(irc.Message{
+		Command: "USER",
+		Params:  []string{c.Ident, "0", "*", c.Name},
+	}); err != nil {
+		return fmt.Errorf("failed to send NICK: %s", err)
+	}
+
+	return nil
 }
 
 // Loop enters a loop reading from the server.
