@@ -13,8 +13,8 @@ import (
 	"github.com/horgh/irc"
 )
 
-// Conn holds an IRC connection.
-type Conn struct {
+// Client holds an IRC client connection.
+type Client struct {
 	// conn: The connection if we are actively connected.
 	conn net.Conn
 
@@ -53,11 +53,11 @@ const timeoutTime = 5 * time.Minute
 
 // Hooks are functions to call for each message. Packages can take actions
 // this way.
-var Hooks []func(*Conn, irc.Message)
+var Hooks []func(*Client, irc.Message)
 
 // New creates a new client connection.
-func New(nick, name, ident, host string, port int, tls bool) *Conn {
-	return &Conn{
+func New(nick, name, ident, host string, port int, tls bool) *Client {
+	return &Client{
 		nick:  nick,
 		name:  name,
 		ident: ident,
@@ -68,7 +68,7 @@ func New(nick, name, ident, host string, port int, tls bool) *Conn {
 }
 
 // Close cleans up the client. It closes the connection.
-func (c *Conn) Close() error {
+func (c *Client) Close() error {
 	if c.conn != nil {
 		err := c.conn.Close()
 		c.conn = nil
@@ -78,7 +78,7 @@ func (c *Conn) Close() error {
 }
 
 // Connect attempts to connect to a server.
-func (c *Conn) Connect() error {
+func (c *Client) Connect() error {
 	if c.tls {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
 		conn, err := tls.DialWithDialer(dialer, "tcp",
@@ -106,7 +106,7 @@ func (c *Conn) Connect() error {
 }
 
 // ReadMessage reads a line from the connection and parses it as an IRC message.
-func (c Conn) ReadMessage() (irc.Message, error) {
+func (c Client) ReadMessage() (irc.Message, error) {
 	buf, err := c.read()
 	if err != nil {
 		return irc.Message{}, err
@@ -122,7 +122,7 @@ func (c Conn) ReadMessage() (irc.Message, error) {
 }
 
 // read reads a line from the connection.
-func (c Conn) read() (string, error) {
+func (c Client) read() (string, error) {
 	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
 		return "", fmt.Errorf("unable to set deadline: %s", err)
 	}
@@ -138,7 +138,7 @@ func (c Conn) read() (string, error) {
 }
 
 // WriteMessage writes an IRC message to the connection.
-func (c Conn) WriteMessage(m irc.Message) error {
+func (c Client) WriteMessage(m irc.Message) error {
 	buf, err := m.Encode()
 	if err != nil && err != irc.ErrTruncated {
 		return fmt.Errorf("unable to encode message: %s", err)
@@ -148,7 +148,7 @@ func (c Conn) WriteMessage(m irc.Message) error {
 }
 
 // write writes a string to the connection
-func (c Conn) write(s string) error {
+func (c Client) write(s string) error {
 	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
 		return fmt.Errorf("unable to set deadline: %s", err)
 	}
@@ -176,7 +176,7 @@ func (c Conn) write(s string) error {
 //
 // Currently it will wait until it times out reading a message before reporting
 // failure.
-func (c *Conn) greet() error {
+func (c *Client) greet() error {
 	if err := c.Register(); err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func (c *Conn) greet() error {
 // We maintain the IRC connection.
 //
 // Hook events will fire.
-func (c *Conn) Loop() error {
+func (c *Client) Loop() error {
 	for {
 		if !c.IsConnected() {
 			return c.Connect()
@@ -233,20 +233,20 @@ func (c *Conn) Loop() error {
 }
 
 // hooks calls each registered IRC package hook.
-func (c *Conn) hooks(message irc.Message) {
+func (c *Client) hooks(message irc.Message) {
 	for _, hook := range Hooks {
 		hook(c, message)
 	}
 }
 
 // IsConnected checks whether the client is connected
-func (c *Conn) IsConnected() bool {
+func (c *Client) IsConnected() bool {
 	return c.conn != nil
 }
 
 // Register sends the client's registration/greeting. This consists of NICK and
 // USER.
-func (c *Conn) Register() error {
+func (c *Client) Register() error {
 	if err := c.Nick(); err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (c *Conn) Register() error {
 }
 
 // Nick sends the NICK command.
-func (c *Conn) Nick() error {
+func (c *Client) Nick() error {
 	if err := c.WriteMessage(irc.Message{
 		Command: "NICK",
 		Params:  []string{c.nick},
@@ -271,7 +271,7 @@ func (c *Conn) Nick() error {
 }
 
 // User sends the USER command.
-func (c *Conn) User() error {
+func (c *Client) User() error {
 	if err := c.WriteMessage(irc.Message{
 		Command: "USER",
 		Params:  []string{c.ident, "0", "*", c.name},
@@ -283,7 +283,7 @@ func (c *Conn) User() error {
 }
 
 // Pong sends a PONG in response to the given PING message.
-func (c *Conn) Pong(ping irc.Message) error {
+func (c *Client) Pong(ping irc.Message) error {
 	return c.WriteMessage(irc.Message{
 		Command: "PONG",
 		Params:  []string{ping.Params[0]},
@@ -291,7 +291,7 @@ func (c *Conn) Pong(ping irc.Message) error {
 }
 
 // Join joins a channel.
-func (c *Conn) Join(name string) error {
+func (c *Client) Join(name string) error {
 	return c.WriteMessage(irc.Message{
 		Command: "JOIN",
 		Params:  []string{name},
@@ -302,7 +302,7 @@ func (c *Conn) Join(name string) error {
 //
 // If the message is too long for a single line, then it will be split over
 // several lines.
-func (c *Conn) Message(target string, message string) error {
+func (c *Client) Message(target string, message string) error {
 	// 512 is the maximum IRC protocol length.
 	// However, user and host takes up some of that. Let's cut down a bit.
 	// This is arbitrary.
@@ -332,7 +332,7 @@ func (c *Conn) Message(target string, message string) error {
 // Quit sends a quit.
 //
 // We track when we send this as we expect an ERROR message in response.
-func (c *Conn) Quit(message string) error {
+func (c *Client) Quit(message string) error {
 	if err := c.WriteMessage(irc.Message{
 		Command: "QUIT",
 		Params:  []string{message},
@@ -344,7 +344,7 @@ func (c *Conn) Quit(message string) error {
 }
 
 // Oper sends an OPER command
-func (c *Conn) Oper(name string, password string) error {
+func (c *Client) Oper(name string, password string) error {
 	return c.WriteMessage(irc.Message{
 		Command: "OPER",
 		Params:  []string{name, password},
@@ -352,7 +352,7 @@ func (c *Conn) Oper(name string, password string) error {
 }
 
 // UserMode sends a MODE command.
-func (c *Conn) UserMode(nick string, modes string) error {
+func (c *Client) UserMode(nick string, modes string) error {
 	return c.WriteMessage(irc.Message{
 		Command: "MODE",
 		Params:  []string{nick, modes},
