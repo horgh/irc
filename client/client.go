@@ -219,7 +219,12 @@ func (c *Client) greet() error {
 func (c *Client) Loop() error {
 	for {
 		if !c.IsConnected() {
-			return c.Connect()
+			if err := c.Connect(); err != nil {
+				return err
+			}
+			if err := c.greet(); err != nil {
+				return err
+			}
 		}
 
 		msg, err := c.ReadMessage()
