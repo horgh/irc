@@ -92,6 +92,22 @@ func (c *Conn) Connect() error {
 	return c.greet()
 }
 
+// ReadMessage reads a line from the connection and parses it as an IRC message.
+func (c Conn) ReadMessage() (irc.Message, error) {
+	buf, err := c.read()
+	if err != nil {
+		return irc.Message{}, err
+	}
+
+	m, err := irc.ParseMessage(buf)
+	if err != nil && err != irc.ErrTruncated {
+		return irc.Message{}, fmt.Errorf("unable to parse message: %s: %s", buf,
+			err)
+	}
+
+	return m, nil
+}
+
 // read reads a line from the connection.
 func (c Conn) read() (string, error) {
 	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
@@ -108,20 +124,14 @@ func (c Conn) read() (string, error) {
 	return line, nil
 }
 
-// ReadMessage reads a line from the connection and parses it as an IRC message.
-func (c Conn) ReadMessage() (irc.Message, error) {
-	buf, err := c.read()
-	if err != nil {
-		return irc.Message{}, err
-	}
-
-	m, err := irc.ParseMessage(buf)
+// WriteMessage writes an IRC message to the connection.
+func (c Conn) WriteMessage(m irc.Message) error {
+	buf, err := m.Encode()
 	if err != nil && err != irc.ErrTruncated {
-		return irc.Message{}, fmt.Errorf("unable to parse message: %s: %s", buf,
-			err)
+		return fmt.Errorf("unable to encode message: %s", err)
 	}
 
-	return m, nil
+	return c.write(buf)
 }
 
 // write writes a string to the connection
@@ -146,16 +156,6 @@ func (c Conn) write(s string) error {
 	log.Printf("Sent: %s", strings.TrimRight(s, "\r\n"))
 
 	return nil
-}
-
-// WriteMessage writes an IRC message to the connection.
-func (c Conn) WriteMessage(m irc.Message) error {
-	buf, err := m.Encode()
-	if err != nil && err != irc.ErrTruncated {
-		return fmt.Errorf("unable to encode message: %s", err)
-	}
-
-	return c.write(buf)
 }
 
 // greet runs connection initiation (NICK, USER)
@@ -224,19 +224,19 @@ func (c *Conn) Loop() error {
 	}
 }
 
+// hooks calls each registered IRC package hook.
+func (c *Conn) hooks(message irc.Message) {
+	for _, hook := range Hooks {
+		hook(c, message)
+	}
+}
+
 // Pong sends a PONG in response to the given PING message.
 func (c *Conn) Pong(ping irc.Message) error {
 	return c.WriteMessage(irc.Message{
 		Command: "PONG",
 		Params:  []string{ping.Params[0]},
 	})
-}
-
-// hooks calls each registered IRC package hook.
-func (c *Conn) hooks(message irc.Message) {
-	for _, hook := range Hooks {
-		hook(c, message)
-	}
 }
 
 // Join joins a channel.
