@@ -180,8 +180,8 @@ func (c Client) write(s string) error {
 // greet runs connection initiation (NICK, USER) and then reads messages until
 // it sees it worked.
 //
-// Currently it will wait until it times out reading a message before reporting
-// failure.
+// Currently we wait until we time out reading a message before reporting
+// failure, or until we see an ERROR.
 func (c *Client) greet() error {
 	if err := c.Register(); err != nil {
 		return err
@@ -203,6 +203,10 @@ func (c *Client) greet() error {
 		if msg.Command == irc.ReplyWelcome {
 			c.registered = true
 			return nil
+		}
+
+		if msg.Command == "ERROR" {
+			return fmt.Errorf("received ERROR: %s", msg)
 		}
 	}
 }
