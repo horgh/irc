@@ -210,14 +210,12 @@ func (c *Conn) Loop() error {
 			if err := c.Pong(msg); err != nil {
 				return err
 			}
-			log.Printf("Sent PONG.")
 		}
 
 		if msg.Command == "ERROR" {
 			// After sending QUIT, the server acknowledges it with an ERROR
 			// command.
 			if c.sentQUIT {
-				log.Printf("Received QUIT acknowledgement. Closing connection.")
 				return c.conn.Close()
 			}
 		}
