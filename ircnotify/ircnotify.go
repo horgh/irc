@@ -1,8 +1,5 @@
-/*
- * This is an IRC client that connects, joins a channel, sends a message, and
- * quits. I intend to use it for event notifications.
- */
-
+// This is an IRC client that connects, joins a channel, sends a message, and
+// quits. I intend to use it for event notifications.
 package main
 
 import (
@@ -45,19 +42,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn := client.Conn{
-		Nick:  *nick,
-		Name:  *nick,
-		Ident: *nick,
-		Host:  *host,
-		Port:  6667,
-		TLS:   false,
-	}
+	conn := client.New(*nick, *nick, *nick, *host, 6667, false)
 
 	err := conn.Connect()
 	if err != nil {
 		log.Printf("Connection failure: %s", err.Error())
 		os.Exit(1)
+	}
+
+	if err := conn.Register(); err != nil {
+		log.Fatalf("Registration failure: %s", err)
 	}
 
 	err = conn.Join(*channel)
