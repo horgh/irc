@@ -21,23 +21,23 @@ type Conn struct {
 	// rw: Read/write handle to the connection
 	rw *bufio.ReadWriter
 
-	// Nick is the desired nickname.
-	Nick string
+	// nick is the desired nickname.
+	nick string
 
-	// Name is the realname to use.
-	Name string
+	// name is the realname to use.
+	name string
 
-	// Ident is the ident to use.
-	Ident string
+	// ident is the ident to use.
+	ident string
 
-	// Host is the IP/hostname of the IRC server to connect to.
-	Host string
+	// host is the IP/hostname of the IRC server to connect to.
+	host string
 
-	// Port is the port of the host of the IRC server to connect to.
-	Port int
+	// port is the port of the host of the IRC server to connect to.
+	port int
 
-	// TLS toggles whether we connect with TLS/SSL or not.
-	TLS bool
+	// tls toggles whether we connect with TLS/SSL or not.
+	tls bool
 
 	// Config holds the parsed config file data.
 	//
@@ -55,6 +55,18 @@ const timeoutTime = 5 * time.Minute
 // this way.
 var Hooks []func(*Conn, irc.Message)
 
+// New creates a new client connection.
+func New(nick, name, ident, host string, port int, tls bool) *Conn {
+	return &Conn{
+		nick:  nick,
+		name:  name,
+		ident: ident,
+		host:  host,
+		port:  port,
+		tls:   tls,
+	}
+}
+
 // Close cleans up the client. It closes the connection.
 func (c *Conn) Close() error {
 	if c.conn != nil {
@@ -67,10 +79,10 @@ func (c *Conn) Close() error {
 
 // Connect attempts to connect to a server.
 func (c *Conn) Connect() error {
-	if c.TLS {
+	if c.tls {
 		dialer := &net.Dialer{Timeout: timeoutConnect}
 		conn, err := tls.DialWithDialer(dialer, "tcp",
-			fmt.Sprintf("%s:%d", c.Host, c.Port),
+			fmt.Sprintf("%s:%d", c.host, c.port),
 			&tls.Config{
 				// Typically IRC servers won't have valid certs.
 				InsecureSkipVerify: true,
@@ -83,7 +95,7 @@ func (c *Conn) Connect() error {
 		return c.greet()
 	}
 
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port),
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.host, c.port),
 		timeoutConnect)
 	if err != nil {
 		return err
@@ -165,7 +177,7 @@ func (c Conn) write(s string) error {
 // Currently it will wait until it times out reading a message before reporting
 // failure.
 func (c *Conn) greet() error {
-	if err := c.SendGreeting(); err != nil {
+	if err := c.Register(); err != nil {
 		return err
 	}
 
@@ -186,25 +198,6 @@ func (c *Conn) greet() error {
 			return nil
 		}
 	}
-}
-
-// SendGreeting sends the client's greeting. This consists of NICK and USER.
-func (c *Conn) SendGreeting() error {
-	if err := c.WriteMessage(irc.Message{
-		Command: "NICK",
-		Params:  []string{c.Nick},
-	}); err != nil {
-		return fmt.Errorf("failed to send NICK: %s", err)
-	}
-
-	if err := c.WriteMessage(irc.Message{
-		Command: "USER",
-		Params:  []string{c.Ident, "0", "*", c.Name},
-	}); err != nil {
-		return fmt.Errorf("failed to send NICK: %s", err)
-	}
-
-	return nil
 }
 
 // Loop enters a loop reading from the server.
@@ -249,6 +242,44 @@ func (c *Conn) hooks(message irc.Message) {
 // IsConnected checks whether the client is connected
 func (c *Conn) IsConnected() bool {
 	return c.conn != nil
+}
+
+// Register sends the client's registration/greeting. This consists of NICK and
+// USER.
+func (c *Conn) Register() error {
+	if err := c.Nick(); err != nil {
+		return err
+	}
+
+	if err := c.User(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Nick sends the NICK command.
+func (c *Conn) Nick() error {
+	if err := c.WriteMessage(irc.Message{
+		Command: "NICK",
+		Params:  []string{c.nick},
+	}); err != nil {
+		return fmt.Errorf("failed to send NICK: %s", err)
+	}
+
+	return nil
+}
+
+// User sends the USER command.
+func (c *Conn) User() error {
+	if err := c.WriteMessage(irc.Message{
+		Command: "USER",
+		Params:  []string{c.ident, "0", "*", c.name},
+	}); err != nil {
+		return fmt.Errorf("failed to send NICK: %s", err)
+	}
+
+	return nil
 }
 
 // Pong sends a PONG in response to the given PING message.
