@@ -260,6 +260,11 @@ func (c *Client) IsConnected() bool {
 	return c.conn != nil
 }
 
+// SetRegistered sets us as registered.
+func (c *Client) SetRegistered() {
+	c.registered = true
+}
+
 // IsRegistered checks whether the client is registered.
 func (c *Client) IsRegistered() bool {
 	return c.registered
