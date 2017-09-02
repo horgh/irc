@@ -42,40 +42,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn := client.New(*nick, *nick, *nick, *host, 6667, false)
+	c := client.New(*nick, *nick, *nick, *host, 6667, false)
 
-	err := conn.Connect()
-	if err != nil {
-		log.Printf("Connection failure: %s", err.Error())
-		os.Exit(1)
+	if err := c.Connect(); err != nil {
+		log.Fatalf("Connection failure: %s", err)
 	}
 
-	if err := conn.Register(); err != nil {
+	if err := c.Register(); err != nil {
 		log.Fatalf("Registration failure: %s", err)
 	}
 
-	err = conn.Join(*channel)
-	if err != nil {
-		log.Printf("Join failure: %s", err.Error())
-		os.Exit(1)
+	if err := c.Join(*channel); err != nil {
+		log.Fatalf("Join failure: %s", err)
 	}
 
-	err = conn.Message(*channel, *message)
-	if err != nil {
-		log.Printf("Message failure: %s", err.Error())
-		os.Exit(1)
+	if err := c.Message(*channel, *message); err != nil {
+		log.Fatalf("Message failure: %s", err)
 	}
 
-	err = conn.Quit("Bye")
-	if err != nil {
-		log.Printf("Quit failure: %s", err.Error())
-		os.Exit(1)
+	if err := c.Quit("Bye"); err != nil {
+		log.Fatalf("Quit failure: %s", err)
 	}
-	err = conn.Loop()
 
-	if err != nil {
-		log.Printf("Loop reported failure: %s", err)
-		os.Exit(1)
+	if err := c.Loop(); err != nil {
+		log.Fatalf("Loop reported failure: %s", err)
 	}
 
 	log.Printf("Done!")
