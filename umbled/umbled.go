@@ -148,12 +148,12 @@ func parseConfig(path string) (*Config, error) {
 }
 
 type state struct {
-	lastActivity time.Time
-	reports      []string
+	lastActivityTime time.Time
+	errors           []string
 }
 
 const (
-	waitPeriod = 10 * time.Minute
+	waitPeriod = 15 * time.Minute
 )
 
 func run(conf *Config, c *client.Client) {
@@ -161,71 +161,57 @@ func run(conf *Config, c *client.Client) {
 
 	for {
 		if !c.IsConnected() {
-			if err := connect(conf, c, s); err != nil {
-				log.Printf("error connecting: %s", err)
+			if err := connect(conf, c); err != nil {
+				s.addError("error connecting: %s", err)
 				_ = c.Close()
 				continue
 			}
-			s.reports = nil
+			s.lastActivityTime = time.Now()
 			continue
 		}
 
 		m, err := c.ReadMessage()
 		if err != nil {
-			if time.Now().Sub(s.lastActivity) < waitPeriod {
-				log.Printf("error reading: %s, continuing", err)
-				s.reports = append(s.reports, fmt.Sprintf("read problem (%s)",
-					time.Now()))
-				continue
+			s.addError("error reading: %s", err)
+			if s.shouldGiveUp() {
+				_ = c.Close()
 			}
-			log.Printf("error reading: %s, giving up", err)
-			_ = c.Close()
 			continue
 		}
+
+		s.lastActivityTime = time.Now()
 
 		if m.Command == "ERROR" {
-			log.Printf("got ERROR: %s", m)
+			s.addError("got ERROR: %s", m)
 			_ = c.Close()
 			continue
 		}
-
-		s.lastActivity = time.Now()
 
 		if m.Command != "PING" {
 			continue
 		}
 
 		if err := c.Pong(m); err != nil {
-			if time.Now().Sub(s.lastActivity) < waitPeriod {
-				s.reports = append(s.reports, fmt.Sprintf("pong problem (%s)",
-					time.Now()))
-				log.Printf("error ponging: %s, continuing", err)
-				continue
+			s.addError("error PONGing: %s", err)
+			if s.shouldGiveUp() {
+				_ = c.Close()
 			}
-			log.Printf("error ponging: %s, giving up", err)
-			_ = c.Close()
 			continue
 		}
 
-		for _, ch := range conf.Channels {
-			for _, r := range s.reports {
-				if err := c.Message(ch, r); err != nil {
-					if time.Now().Sub(s.lastActivity) < waitPeriod {
-						s.reports = append(s.reports, fmt.Sprintf("message problem (%s)",
-							time.Now()))
-						log.Printf("error messaging: %s, continuing", err)
-						continue
-					}
-					log.Printf("error messaging: %s, giving up", err)
-					_ = c.Close()
-					continue
-				}
+		s.lastActivityTime = time.Now()
+
+		if err := sendMessages(conf, c, s); err != nil {
+			s.addError("error messaging: %s", err)
+			if s.shouldGiveUp() {
+				_ = c.Close()
 			}
+			continue
 		}
 	}
 }
 
-func connect(conf *Config, c *client.Client, s *state) error {
+func connect(conf *Config, c *client.Client) error {
 	if err := c.Connect(); err != nil {
 		return err
 	}
@@ -242,12 +228,13 @@ func connect(conf *Config, c *client.Client, s *state) error {
 
 		if m.Command == irc.ReplyWelcome {
 			c.SetRegistered()
+
 			for _, ch := range conf.Channels {
 				if err := c.Join(ch); err != nil {
 					return fmt.Errorf("error joining channel: %s: %s", ch, err)
 				}
 			}
-			s.lastActivity = time.Now()
+
 			return nil
 		}
 
@@ -255,4 +242,32 @@ func connect(conf *Config, c *client.Client, s *state) error {
 			return fmt.Errorf("received ERROR: %s", m)
 		}
 	}
+}
+
+func (s *state) addError(format string, args ...interface{}) {
+	finalArgs := []interface{}{time.Now()}
+	finalArgs = append(finalArgs, args...)
+
+	m := fmt.Sprintf("%s: "+format, finalArgs)
+
+	s.errors = append(s.errors, m)
+}
+
+func (s *state) shouldGiveUp() bool {
+	return time.Now().Sub(s.lastActivityTime) > waitPeriod
+}
+
+func sendMessages(conf *Config, c *client.Client, s *state) error {
+	for _, ch := range conf.Channels {
+		for i, e := range s.errors {
+			if err := c.Message(ch, e); err != nil {
+				s.errors = s.errors[i:]
+				return err
+			}
+
+			s.lastActivityTime = time.Now()
+		}
+	}
+
+	return nil
 }
