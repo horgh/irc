@@ -48,11 +48,16 @@ type Client struct {
 	registered bool
 }
 
-// timeoutConnect is how long we wait for connection attempts to time out.
-const timeoutConnect = 30 * time.Second
+const (
+	// timeoutConnect is how long we wait for connection attempts to time out.
+	timeoutConnect = 30 * time.Second
 
-// timeoutTime is how long we wait on network I/O by default.
-const timeoutTime = 5 * time.Minute
+	// timeoutTime is how long we wait on network I/O by default.
+	timeoutTime = 5 * time.Minute
+
+	// keepAliveDuration is how long between TCP keepalives.
+	keepAliveDuration = 30 * time.Second
+)
 
 // Hooks are functions to call for each message. Packages can take actions
 // this way.
@@ -85,8 +90,12 @@ func (c *Client) Close() error {
 
 // Connect opens a new connection to the server.
 func (c *Client) Connect() error {
+	dialer := &net.Dialer{
+		Timeout:   timeoutConnect,
+		KeepAlive: keepAliveDuration,
+	}
+
 	if c.tls {
-		dialer := &net.Dialer{Timeout: timeoutConnect}
 		conn, err := tls.DialWithDialer(dialer, "tcp",
 			fmt.Sprintf("%s:%d", c.host, c.port),
 			&tls.Config{
@@ -96,16 +105,17 @@ func (c *Client) Connect() error {
 		if err != nil {
 			return err
 		}
+
 		c.conn = conn
 		c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 		return nil
 	}
 
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.host, c.port),
-		timeoutConnect)
+	conn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", c.host, c.port))
 	if err != nil {
 		return err
 	}
+
 	c.conn = conn
 	c.rw = bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 	return nil
