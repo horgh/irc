@@ -245,10 +245,13 @@ func connect(conf *Config, c *client.Client) error {
 }
 
 func (s *state) addError(format string, args ...interface{}) {
-	finalArgs := []interface{}{time.Now()}
-	finalArgs = append(finalArgs, args...)
+	finalArgs := []interface{}{time.Now().Format(time.RFC3339)}
+	if len(args) > 0 {
+		finalArgs = append(finalArgs, args...)
+	}
 
-	m := fmt.Sprintf("%s: "+format, finalArgs)
+	m := fmt.Sprintf("%s: "+format, finalArgs...)
+	log.Print(m)
 
 	s.errors = append(s.errors, m)
 }
