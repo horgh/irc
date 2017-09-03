@@ -218,15 +218,6 @@ func (c *Client) greet() error {
 // Hook events will fire.
 func (c *Client) Loop() error {
 	for {
-		if !c.IsConnected() {
-			if err := c.Connect(); err != nil {
-				return err
-			}
-			if err := c.greet(); err != nil {
-				return err
-			}
-		}
-
 		msg, err := c.ReadMessage()
 		if err != nil {
 			return err
