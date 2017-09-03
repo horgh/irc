@@ -35,6 +35,7 @@ func main() {
 
 	client := client.New(conf.Nick, conf.Nick, conf.Nick, conf.ServerHost,
 		conf.ServerPort, true)
+	client.SetTimeoutTime(7 * time.Minute)
 
 	run(conf, client)
 }

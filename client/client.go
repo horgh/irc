@@ -46,6 +46,9 @@ type Client struct {
 
 	// Track whether we've successfully registered.
 	registered bool
+
+	// Deadline on read/writes.
+	timeoutTime time.Duration
 }
 
 const (
@@ -66,13 +69,19 @@ var Hooks []func(*Client, irc.Message)
 // New creates a new client connection.
 func New(nick, name, ident, host string, port int, tls bool) *Client {
 	return &Client{
-		nick:  nick,
-		name:  name,
-		ident: ident,
-		host:  host,
-		port:  port,
-		tls:   tls,
+		nick:        nick,
+		name:        name,
+		ident:       ident,
+		host:        host,
+		port:        port,
+		tls:         tls,
+		timeoutTime: timeoutTime,
 	}
+}
+
+// SetTimeoutTime sets the duration we wait on reads/writes.
+func (c *Client) SetTimeoutTime(d time.Duration) {
+	c.timeoutTime = d
 }
 
 // Close cleans up the client. It closes the connection.
@@ -139,7 +148,7 @@ func (c Client) ReadMessage() (irc.Message, error) {
 
 // read reads a line from the connection.
 func (c Client) read() (string, error) {
-	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
+	if err := c.conn.SetDeadline(time.Now().Add(c.timeoutTime)); err != nil {
 		return "", fmt.Errorf("unable to set deadline: %s", err)
 	}
 
@@ -165,7 +174,7 @@ func (c Client) WriteMessage(m irc.Message) error {
 
 // write writes a string to the connection
 func (c Client) write(s string) error {
-	if err := c.conn.SetDeadline(time.Now().Add(timeoutTime)); err != nil {
+	if err := c.conn.SetDeadline(time.Now().Add(c.timeoutTime)); err != nil {
 		return fmt.Errorf("unable to set deadline: %s", err)
 	}
 
