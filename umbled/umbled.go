@@ -269,5 +269,6 @@ func sendMessages(conf *Config, c *client.Client, s *state) error {
 		}
 	}
 
+	s.errors = nil
 	return nil
 }
