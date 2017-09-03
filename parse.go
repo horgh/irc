@@ -14,6 +14,9 @@ const (
 
 	// ReplyWelcome is the RPL_WELCOME response numeric.
 	ReplyWelcome = "001"
+
+	// ReplyYoureOper is the RPL_YOUREOPER response numeric.
+	ReplyYoureOper = "381"
 )
 
 // ErrTruncated is the error returned by Encode if the message gets truncated

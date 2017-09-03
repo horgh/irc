@@ -270,6 +270,11 @@ func (c *Client) IsRegistered() bool {
 	return c.registered
 }
 
+// GetNick retrieves the client's nick.
+func (c *Client) GetNick() string {
+	return c.nick
+}
+
 // Register sends the client's registration/greeting. This consists of NICK and
 // USER.
 func (c *Client) Register() error {

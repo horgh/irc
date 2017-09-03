@@ -1,7 +1,4 @@
-/*
- * Make the connection oper up.
- */
-
+// Package oper makes the client become an operator.
 package oper
 
 import (
@@ -17,15 +14,14 @@ func init() {
 
 // Hook fires when an IRC message of some kind occurs.
 // This can let us know whether to do anything or not.
-func Hook(conn *client.Conn, message irc.Message) {
-	// RPL_WELCOME, Welcome
-	if message.Command == "001" {
+func Hook(c *client.Client, message irc.Message) {
+	if message.Command == irc.ReplyWelcome {
 		// Try to oper if we have both an oper name and password.
-		operName, exists := conn.Config["oper-name"]
+		operName, exists := c.Config["oper-name"]
 		if !exists {
 			return
 		}
-		operPass, exists := conn.Config["oper-password"]
+		operPass, exists := c.Config["oper-password"]
 		if !exists {
 			return
 		}
@@ -33,35 +29,33 @@ func Hook(conn *client.Conn, message irc.Message) {
 			return
 		}
 
-		err := conn.Oper(operName, operPass)
-		if err != nil {
+		if err := c.Oper(operName, operPass); err != nil {
 			log.Printf("Unable to send OPER: %s", err)
+			return
 		}
+
 		log.Printf("Sent OPER")
 		return
 	}
 
-	// 381: RPL_YOUREOPER
-	// Successful oper.
-	// Apply user modes.
-	if message.Command == "381" {
-		err := sendUmode(conn)
-		if err != nil {
+	// Successful oper. Apply user modes.
+	if message.Command == irc.ReplyYoureOper {
+		if err := sendUmode(c); err != nil {
 			log.Printf("Problem sending MODE: %s", err)
+			return
 		}
 		return
 	}
 }
 
 // sendUmode sends the oper umodes with the MODE command.
-func sendUmode(conn *client.Conn) error {
-	operUmodes, exists := conn.Config["oper-umodes"]
+func sendUmode(c *client.Client) error {
+	operUmodes, exists := c.Config["oper-umodes"]
 	if !exists {
 		return nil
 	}
 
-	err := conn.UserMode(conn.ActualNick, operUmodes)
-	if err != nil {
+	if err := c.UserMode(c.GetNick(), operUmodes); err != nil {
 		return err
 	}
 

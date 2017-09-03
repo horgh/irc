@@ -1,7 +1,4 @@
-/*
- * A simple example client using the irc package.
- */
-
+// A simple example client using the client package.
 package main
 
 import (
@@ -47,47 +44,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn := client.Conn{
-		Nick:  *nick,
-		Name:  *nick,
-		Ident: *nick,
-		Host:  *host,
-		Port:  *port,
-		TLS:   *tls,
-	}
+	c := client.New(*nick, *nick, *nick, *host, *port, *tls)
 
 	if len(*configFile) > 0 {
 		config, err := config.ReadStringMap(*configFile)
 		if err != nil {
 			log.Fatalf("Unable to load config: %s: %s", *configFile, err)
 		}
-		conn.Config = config
+		c.Config = config
 	}
 
-	err := conn.Connect()
-	if err != nil {
-		log.Printf("Connection failure: %s", err.Error())
-		os.Exit(1)
+	if err := c.Connect(); err != nil {
+		log.Fatalf("Connection failure: %s", err)
+	}
+
+	if err := c.Register(); err != nil {
+		log.Fatalf("Registration failure: %s", err)
 	}
 
 	channels := strings.Split(*channel, ",")
-	for _, c := range channels {
-		c = strings.TrimSpace(c)
-		if len(c) == 0 {
+	for _, ch := range channels {
+		ch = strings.TrimSpace(ch)
+		if len(ch) == 0 {
 			continue
 		}
 
-		err = conn.Join(c)
-		if err != nil {
-			log.Printf("Join failure: %s", err.Error())
-			os.Exit(1)
+		if err := c.Join(ch); err != nil {
+			log.Fatalf("Join failure: %s", err)
 		}
 	}
 
-	err = conn.Loop()
-	if err != nil {
-		log.Printf("Loop failure: %s", err)
-		os.Exit(1)
+	if err := c.Loop(); err != nil {
+		log.Fatalf("Loop failure: %s", err)
 	}
 
 	log.Printf("Done")

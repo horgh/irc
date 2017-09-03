@@ -1,13 +1,10 @@
-/*
- * Package recordips makes a client watch for user connection notices (as
- * operator).
- *
- * Record each IP to a file (if it is not present), along with the nick and
- * date.
- *
- * My use case is to add connecting IPs to a firewall rule.
- */
-
+// Package recordips makes a client watch for user connection notices (as
+// operator).
+//
+// Record each IP to a file (if it is not present), along with the nick and
+// date.
+//
+// My use case is to add connecting IPs to a firewall rule.
 package recordips
 
 import (
@@ -26,11 +23,14 @@ func init() {
 }
 
 // Hook fires when an IRC message of some kind occurs.
+//
 // We look for CLICONN notices and record the IP.
+//
 // The notices look like:
 // :irc.example.com NOTICE * :*** Notice -- CLICONN will will example.com 192.168.1.2 opers will 192.168.1.2 0 will
-// Note this is likely ircd-ratbox specific.
-func Hook(conn *client.Conn, message irc.Message) {
+//
+// Note this is ircd-ratbox specific.
+func Hook(c *client.Client, message irc.Message) {
 	if message.Command != "NOTICE" {
 		return
 	}
@@ -50,7 +50,7 @@ func Hook(conn *client.Conn, message irc.Message) {
 		return
 	}
 
-	ipFile, exists := conn.Config["record-ip-file"]
+	ipFile, exists := c.Config["record-ip-file"]
 	if !exists {
 		return
 	}
@@ -60,8 +60,7 @@ func Hook(conn *client.Conn, message irc.Message) {
 
 	comment := fmt.Sprintf("IRC: %s", nick)
 
-	err := cidrlist.RecordIP(ipFile, ip, comment, time.Now())
-	if err != nil {
+	if err := cidrlist.RecordIP(ipFile, ip, comment, time.Now()); err != nil {
 		log.Printf("recordips: Unable to record IP: %s", err)
 		return
 	}
