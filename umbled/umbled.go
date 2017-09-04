@@ -162,6 +162,8 @@ func run(conf *Config, c *client.Client) {
 	s := &state{}
 
 	for {
+		time.Sleep(time.Second)
+
 		if !c.IsConnected() {
 			if err := connect(conf, c); err != nil {
 				s.addError("error connecting: %s", err)
