@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -174,7 +175,8 @@ func run(conf *Config, c *client.Client) {
 		m, err := c.ReadMessage()
 		if err != nil {
 			s.addError("error reading: %s", err)
-			if s.shouldGiveUp() {
+			// If we have EOF then we'll just see that from now on, so abort.
+			if s.shouldGiveUp() || err == io.EOF {
 				_ = c.Close()
 			}
 			continue
