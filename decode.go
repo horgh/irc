@@ -9,8 +9,6 @@ import (
 // ParseMessage parses a protocol message from the client/server.
 //
 // See RFC 1459/2812 section 2.3.1.
-//
-// line ends with \n.
 func ParseMessage(line string) (Message, error) {
 	line, err := fixLineEnding(line)
 	if err != nil {
@@ -64,6 +62,7 @@ func ParseMessage(line string) (Message, error) {
 	message.Params = params
 
 	// We should now have CRLF.
+	//
 	// index should be pointing at the CR after parsing params.
 	if index != len(line)-2 || line[index] != '\r' || line[index+1] != '\n' {
 		return Message{}, fmt.Errorf("malformed message. No CRLF found. Looking for end at position %d", index)
