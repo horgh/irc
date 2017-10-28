@@ -173,6 +173,10 @@ func TestParseMessage(t *testing.T) {
 		// the wild. This tests having lots of it.
 		{":irc MODE #test +o user          \r\n", "irc", "MODE",
 			[]string{"#test", "+o", "user"}, true},
+
+		// Test that inline : isn't a problem.
+		{":irc MODE #test +o u:ser\r\n", "irc", "MODE",
+			[]string{"#test", "+o", "u:ser"}, true},
 	}
 
 	for _, test := range tests {
@@ -607,6 +611,39 @@ func TestEncodeMessage(t *testing.T) {
 			},
 			":hi PRIVMSG 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\r\n",
 			true,
+		},
+
+		// Inline : does not get escaped.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "hi",
+				Params:  []string{"one:two", "hi there"},
+			},
+			":hi PRIVMSG one:two :hi there\r\n",
+			true,
+		},
+
+		// Param starting with : does get escaped.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "hi",
+				Params:  []string{":one:two"},
+			},
+			":hi PRIVMSG ::one:two\r\n",
+			true,
+		},
+
+		// Need to escape first parameter, but it's not the last.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "hi",
+				Params:  []string{":one:two", "hi"},
+			},
+			"",
+			false,
 		},
 	}
 

@@ -69,19 +69,24 @@ func (m Message) Encode() (string, error) {
 	}
 
 	for i, param := range m.Params {
-		// We need to prefix the parameter with a colon in two cases: 1) there is a
-		// space or 2) the first character is a colon.
+		// We need to prefix the parameter with a colon in a few cases:
 		//
-		// The trailing parameter may be an empty string. We need to ensure it
-		// shows up by adding a :. This can happen e.g. from ircd-ratbox in a TOPIC
-		// unset command (server protocol). RFC 1459/2812's grammar permits this.
+		// 1) When there is a space in the parameter
+		//
+		// 2) When the first character is a colon
+		//
+		// 3) When this is the last parameter and it is empty. We do this to ensure
+		// it is visible. This is important e.g. in a TOPIC unset command (TS6
+		// server protocol). Also, RFC 1459/2812's grammar permits this.
 		//
 		// RFC 2812 differs from RFC 1459 by saying that ":" is optional for the
 		// 15th parameter, but we ignore that.
-		if idx := strings.IndexAny(param, ": "); idx != -1 || len(param) == 0 {
+		if idx := strings.IndexAny(param, " "); idx != -1 ||
+			(param != "" && param[0] == ':') ||
+			param == "" {
 			param = ":" + param
 
-			// This must be the last parameter.
+			// This must be the last parameter. There can only be one <trailing>.
 			if i+1 != len(m.Params) {
 				return "", fmt.Errorf(
 					"parameter problem: ':' or ' ' outside last parameter")
