@@ -58,10 +58,12 @@ func TestParseMessage(t *testing.T) {
 			"2", "3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", "5"},
 			true},
 
-		// Test last param having no : nor characters
+		// Test last param having no : nor characters. If we went by RFC 2812 then
+		// this would give us an empty 15th parametr. But we go by RFC 1459 and so
+		// treat it as invalid trailing space and ignore it.
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 \r\n", "irc", "000",
 			[]string{"1", "2",
-				"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", ""}, true},
+				"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4"}, true},
 
 		// Test last param having : but no characters
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 :\r\n", "irc", "000",
@@ -73,10 +75,11 @@ func TestParseMessage(t *testing.T) {
 				"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", "hi there"},
 			true},
 
-		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 hi there\r\n", "irc", "000",
-			[]string{"1", "2",
-				"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", "hi there"},
-			true},
+		// If we went by RFC 2812 then we get "hi there" as the 15th parameter
+		// since : is optional by that RFC. But we favour RFC 1459 and so see too
+		// many parameters.
+		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 hi there\r\n", "", "",
+			[]string{}, false},
 
 		// Malformed because \r should not appear there.
 		{":irc 000 \r\r\n", "", "", []string{}, false},
@@ -369,9 +372,12 @@ func TestParseParams(t *testing.T) {
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5\r\n", 8, []string{"1", "2",
 			"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", "5"}, 38},
 
-		// Test last param having no : nor characters
+		// Test last param having no : nor characters. Going by RFC 2812 this would
+		// give us an empty parameter as the : is optional there. But we favour RFC
+		// 1459 and due to our ignoring trailing whitespace, though invalid, we get
+		// only 14 parameters.
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 \r\n", 8, []string{"1", "2",
-			"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4", ""}, 37},
+			"3", "4", "5", "6", "7", "8", "9", "0", "1", "2", "3", "4"}, 37},
 
 		// Test last param having : but no characters
 		{":irc 000 1 2 3 4 5 6 7 8 9 0 1 2 3 4 :\r\n", 8, []string{"1", "2",

@@ -174,6 +174,10 @@ func ParseMessage(line string) (Message, error) {
 		return Message{}, fmt.Errorf("problem parsing params: %s", err)
 	}
 
+	if len(params) > 15 {
+		return Message{}, fmt.Errorf("too many parameters")
+	}
+
 	message.Params = params
 
 	// We should now have CRLF.
@@ -326,14 +330,13 @@ func parseCommand(line string, index int) (string, int, error) {
 // parseParams parses the params part of a message.
 //
 // The given index points to the first character in the params.
-// There may not actually be any params. In that case we don't raise an
-// error but simply do not return any.
 //
-// We return each param (stripped of : in the case of 'trailing') and the
-// index after the params end.
+// It is valid for there to be no params.
 //
-// Note there may be blank parameters in some cases. Specifically since
-// trailing accepts 0 length as valid.
+// We return each param (stripped of : in the case of 'trailing') and the index
+// after the params end.
+//
+// Note there may be a blank parameter since trailing may be empty.
 //
 // See <params> in grammar.
 func parseParams(line string, index int) ([]string, int, error) {
@@ -345,40 +348,30 @@ func parseParams(line string, index int) ([]string, int, error) {
 			return params, newIndex, nil
 		}
 
-		if len(params) < 14 {
-			param, paramIndex, err := parseParam(line, newIndex)
-			if err != nil {
-				// At this point we should always have at least one character in the
-				// param. However it is common in the wild (ratbox, quassel) for there
-				// to be space character(s) before CRLF. Permit that here.
-				//
-				// We return index pointing after the problem spaces as though we
-				// consumed them. We will be pointing at the CR.
-				if err == errEmptyParam {
-					crIndex := isTrailingWhitespace(line, newIndex)
-					if crIndex != -1 {
-						return params, crIndex, nil
-					}
-				}
+		// In theory we could treat the 15th parameter differently to account for
+		// ":" being optional in RFC 2812. This is a difference from 1459 and I
+		// suspect not seen in the wild, so I don't.
 
-				return nil, -1, fmt.Errorf("problem parsing parameter: %s", err)
+		param, paramIndex, err := parseParam(line, newIndex)
+		if err != nil {
+			// We should always have at least one character. However it is common in
+			// the wild (ratbox, quassel) for there to be trailing space characters
+			// before the CRLF. Permit this despite it arguably being invalid.
+			//
+			// We return the index pointing after the problem spaces as though we
+			// consumed them. We will be pointing at the CR.
+			if err == errEmptyParam {
+				crIndex := isTrailingWhitespace(line, newIndex)
+				if crIndex != -1 {
+					return params, crIndex, nil
+				}
 			}
 
-			newIndex = paramIndex
-
-			params = append(params, param)
-
-			continue
+			return nil, -1, fmt.Errorf("problem parsing parameter: %s", err)
 		}
 
-		param, newIndex, err := parseParamLast(line, newIndex)
-		if err != nil {
-			return nil, -1, fmt.Errorf("problem parsing last parameter: %s", err)
-		}
-
+		newIndex = paramIndex
 		params = append(params, param)
-
-		return params, newIndex, nil
 	}
 
 	return nil, -1, fmt.Errorf("malformed params. Not terminated properly")
@@ -411,8 +404,8 @@ func parseParam(line string, index int) (string, int, error) {
 			return "", -1, fmt.Errorf("malformed parameter. End of string after ':'")
 		}
 
-		// It is valid for there to be no characters.
-		// Because: trailing   =  *( ":" / " " / nospcrlfcl )
+		// It is valid for there to be no characters. Because: trailing   =  *( ":"
+		// / " " / nospcrlfcl )
 
 		paramIndexStart := newIndex
 
@@ -427,14 +420,9 @@ func parseParam(line string, index int) (string, int, error) {
 		return line[paramIndexStart:newIndex], newIndex, nil
 	}
 
-	// SPACE middle
-	// middle     =  nospcrlfcl *( ":" / nospcrlfcl )
-	// nospcrlfcl = any octet except NUL, CR, LF, " ", ":"
-	// This means the first character must not be any of those, but afterwards :
-	// may appear.
-	//
-	// We know from the above check (for SPACE ":" trailing) that it is NOT ":",
-	// so we can take all except NUL, CR, LF, " ".
+	// We know we are parsing a <middle> and that we've dealt with :. This means
+	// we accept any character except NUL, CR, or LF. A space means we're at the
+	// end of the param.
 
 	// paramIndexStart points at the character after the space.
 	paramIndexStart := newIndex
@@ -459,7 +447,7 @@ func parseParam(line string, index int) (string, int, error) {
 // until we reach CRLF, return the position of CR.
 //
 // This is so we can recognize stray trailing spaces and discard them. They are
-// often invalid, but we want to be liberal in what we accept.
+// arguably invalid, but we want to be liberal in what we accept.
 func isTrailingWhitespace(line string, index int) int {
 	for i := index; i < len(line); i++ {
 		if line[i] == ' ' {
@@ -475,48 +463,4 @@ func isTrailingWhitespace(line string, index int) int {
 
 	// We didn't hit \r. Line was all spaces.
 	return -1
-}
-
-// parseParamLast takes the final case when parsing params.
-//
-// Specifically, the [ SPACE [ ":" ] trailing ] case.
-func parseParamLast(line string, index int) (string, int, error) {
-	newIndex := index
-
-	if line[newIndex] != ' ' {
-		return "", -1, fmt.Errorf("malformed param. No leading space")
-	}
-
-	newIndex++
-
-	// If we're at the end of the string, then something is wrong. While the
-	// parameter may be blank, there should at least be CRLF remaining.
-	// It's valid for there to be no characters.
-	if newIndex == len(line) {
-		return "", -1, fmt.Errorf("malformed param. Space ends message")
-	}
-
-	// It is valid for there to be no :
-	if line[newIndex] == ':' {
-		newIndex++
-
-		// See above. We should have at least CRLF.
-		if newIndex == len(line) {
-			return "", -1, fmt.Errorf("malformed param. : ends message")
-		}
-	}
-
-	// It is valid for there to be no characters.
-
-	paramStartIndex := newIndex
-
-	for newIndex < len(line) {
-		if line[newIndex] == '\x00' || line[newIndex] == '\r' ||
-			line[newIndex] == '\n' {
-			break
-		}
-		newIndex++
-	}
-
-	return line[paramStartIndex:newIndex], newIndex, nil
 }
