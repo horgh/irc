@@ -63,6 +63,11 @@ func (m Message) Encode() (string, error) {
 
 	truncated := false
 
+	// Both RFC 1459 and RFC 2812 limit us to 15 parameters.
+	if len(m.Params) > 15 {
+		return "", fmt.Errorf("too many parameters")
+	}
+
 	for i, param := range m.Params {
 		// We need to prefix the parameter with a colon in two cases: 1) there is a
 		// space or 2) the first character is a colon.

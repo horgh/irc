@@ -578,6 +578,30 @@ func TestEncodeMessage(t *testing.T) {
 			"",
 			false,
 		},
+
+		// Too many parameters.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "hi",
+				Params: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+					"11", "12", "13", "14", "15", "16"},
+			},
+			"",
+			false,
+		},
+
+		// 15 parameters is ok.
+		{
+			Message{
+				Command: "PRIVMSG",
+				Prefix:  "hi",
+				Params: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+					"11", "12", "13", "14", "15"},
+			},
+			":hi PRIVMSG 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\r\n",
+			true,
+		},
 	}
 
 	for _, test := range tests {
