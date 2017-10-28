@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	// MaxLineLength is the maximum protocol message line length.
-	// From RFC 2812 section 2.3. It includes CRLF.
+	// MaxLineLength is the maximum protocol message line length. It includes
+	// CRLF.
 	MaxLineLength = 512
 
 	// ReplyWelcome is the RPL_WELCOME response numeric.
@@ -27,8 +27,7 @@ var ErrTruncated = errors.New("message truncated")
 // there is one, it should have a ':' prefix.
 var errEmptyParam = errors.New("parameter with zero characters")
 
-// Message holds a protocol message.
-// See section 2.3.1 in RFC 2812.
+// Message holds a protocol message. See section 2.3.1 in RFC 1459/2812.
 type Message struct {
 	// Prefix may be blank. It's optional.
 	Prefix string
@@ -65,39 +64,37 @@ func (m Message) Encode() (string, error) {
 	truncated := false
 
 	for i, param := range m.Params {
-		// If we have a ":" or " ", then we need to prefix the parameter with ":".
-		// This happening is only valid for the last ("trailing") parameter.
+		// We need to prefix the parameter with a colon in two cases: 1) there is a
+		// space or 2) the first character is a colon.
 		//
-		// Also, the trailing parameter may be an empty string. Ensure it shows up
-		// by adding a :. This can happen e.g. from ircd-ratbox in TOPIC unset
-		// command (server protocol). Modern IRC and ircv3 both specify this as
-		// valid (that the last parameter may be empty). Also, RFC 2812's grammar
-		// permits it. The ":" is optional only if this is the 15th parameter. But
-		// it is valid.
+		// The trailing parameter may be an empty string. We need to ensure it
+		// shows up by adding a :. This can happen e.g. from ircd-ratbox in a TOPIC
+		// unset command (server protocol). RFC 1459/2812's grammar permits this.
+		//
+		// RFC 2812 differs from RFC 1459 by saying that ":" is optional for the
+		// 15th parameter, but we ignore that.
 		if idx := strings.IndexAny(param, ": "); idx != -1 || len(param) == 0 {
 			param = ":" + param
 
 			// This must be the last parameter.
 			if i+1 != len(m.Params) {
-				return "", fmt.Errorf("parameter problem: ':' or ' ' outside last parameter")
+				return "", fmt.Errorf(
+					"parameter problem: ':' or ' ' outside last parameter")
 			}
 		}
 
 		// If we add the parameter as is, do we exceed the maximum length?
 		if len(s)+1+len(param)+2 > MaxLineLength {
-			// Two cases: Either we can truncate the parameter and include a portion
-			// of it, or the parameter is too short to include at all. If it is too
-			// short to include, then don't add the space separator either. In the
-			// cases where this is not the 15th parameter having a trailing space is
-			// not valid, but even in the case of the 15th parameter, we don't need
-			// it.
+			// Either we can truncate the parameter and include a portion of it, or
+			// the parameter is too short to include at all. If it is too short to
+			// include, then don't add the space separator either.
 
-			// Claim the space separator (1) and ending (2) as used. Then we can tell
+			// Claim the space separator (1) and CRLF (2) as used. Then we can tell
 			// how many bytes are available for the parameter as it is.
 			lengthUsed := len(s) + 1 + 2
 			lengthAvailable := MaxLineLength - lengthUsed
 
-			// Note: If we prefixed the parameter with : then it's possible we include
+			// If we prefixed the parameter with : then it's possible we include
 			// only the : here (if length available is 1). This is perhaps a little
 			// odd but I don't think problematic.
 
@@ -106,7 +103,6 @@ func (m Message) Encode() (string, error) {
 			}
 
 			truncated = true
-
 			break
 		}
 
@@ -124,7 +120,7 @@ func (m Message) Encode() (string, error) {
 
 // ParseMessage parses a protocol message from the client/server.
 //
-// See RFC 2812 Section 2.3.1.
+// See RFC 1459/2812 section 2.3.1.
 //
 // line ends with \n.
 func ParseMessage(line string) (Message, error) {
@@ -334,14 +330,7 @@ func parseCommand(line string, index int) (string, int, error) {
 // Note there may be blank parameters in some cases. Specifically since
 // trailing accepts 0 length as valid.
 //
-// Relevant parts of ABNF from RFC 2812 section 2.3.1:
-// message    =  [ ":" prefix SPACE ] command [ params ] crlf
-// params     =  *14( SPACE middle ) [ SPACE ":" trailing ]
-//            =/ 14( SPACE middle ) [ SPACE [ ":" ] trailing ]
-// middle     =  nospcrlfcl *( ":" / nospcrlfcl )
-// trailing   =  *( ":" / " " / nospcrlfcl )
-// nospcrlfcl =  %x01-09 / %x0B-0C / %x0E-1F / %x21-39 / %x3B-FF
-//               ; any octet except NUL, CR, LF, " " and ":"
+// See <params> in grammar.
 func parseParams(line string, index int) ([]string, int, error) {
 	newIndex := index
 	var params []string
