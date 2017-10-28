@@ -366,7 +366,7 @@ func parseParams(line string, index int) ([]string, int, error) {
 			// We return the index pointing after the problem spaces as though we
 			// consumed them. We will be pointing at the CR.
 			if err == errEmptyParam {
-				crIndex := isTrailingWhitespace(line, newIndex)
+				crIndex := isTrailingSpace(line, newIndex)
 				if crIndex != -1 {
 					return params, crIndex, nil
 				}
@@ -453,7 +453,7 @@ func parseParam(line string, index int) (string, int, error) {
 //
 // This is so we can recognize stray trailing spaces and discard them. They are
 // arguably invalid, but we want to be liberal in what we accept.
-func isTrailingWhitespace(line string, index int) int {
+func isTrailingSpace(line string, index int) int {
 	for i := index; i < len(line); i++ {
 		if line[i] == ' ' {
 			continue
