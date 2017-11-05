@@ -11,8 +11,7 @@ import (
 
 // msg-split tests from irc-parser-tests
 func TestIRCParserTestsMsgSplit(t *testing.T) {
-	testFile := filepath.Join("vendor", "github.com", "DanielOaks",
-		"irc-parser-tests", "tests", "msg-split.yaml")
+	testFile := filepath.Join("irc-parser-tests", "tests", "msg-split.yaml")
 	data, err := ioutil.ReadFile(testFile)
 	if err != nil {
 		t.Fatalf("error opening file: %s: %s", testFile, err)
@@ -87,8 +86,7 @@ func TestIRCParserTestsMsgSplit(t *testing.T) {
 
 // msg-join tests from irc-parser-tests
 func TestIRCParserTestsMsgJoin(t *testing.T) {
-	testFile := filepath.Join("vendor", "github.com", "DanielOaks",
-		"irc-parser-tests", "tests", "msg-join.yaml")
+	testFile := filepath.Join("irc-parser-tests", "tests", "msg-join.yaml")
 	data, err := ioutil.ReadFile(testFile)
 	if err != nil {
 		t.Fatalf("error opening file: %s: %s", testFile, err)
