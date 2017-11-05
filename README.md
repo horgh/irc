@@ -1,4 +1,7 @@
 # IRC
+
+[![GoDoc](https://godoc.org/github.com/horgh/irc?status.svg)](https://godoc.org/github.com/horgh/irc)
+
 This package provides functionality for working with the IRC protocol.
 Specifically, it provides decoding and encoding of IRC messages.
 
@@ -11,8 +14,9 @@ In general it follows [RFC 1459](https://tools.ietf.org/html/rfc1459). RFC
 2812](https://tools.ietf.org/html/rfc2812). Where there is a difference,
 this package favours RFC 1459.
 
-Due to the vagaries of IRC servers in the wild, this package is lenient and
-will decode messages even if they are not fully RFC compliant. For example:
+Due to the vagaries of IRC servers and clients in the wild, this package is
+lenient and will decode messages even if they are not fully RFC compliant.
+For example:
 
   * It silently ignores trailing spaces in messages in certain cases (in
     locations where they should be considered invalid).
