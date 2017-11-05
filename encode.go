@@ -5,11 +5,15 @@ import (
 	"strings"
 )
 
-// Encode turns the in memory representation of the memory into the IRC
-// protocol message string.
+// Encode encodes the Message into a raw protocol message string.
 //
-// It does not enforce command specific semantics. It is instead responsible
-// only for placing prefix, command, and parameters.
+// The resulting string will have a trailing CRLF.
+//
+// If encoding the message would exceed the allowed maximum length (more than
+// MaxLineLength bytes), we truncate and return as much as we can and return
+// ErrTruncated. This truncated message may still be usable.
+//
+// It does not enforce command specific semantics.
 func (m Message) Encode() (string, error) {
 	s := ""
 

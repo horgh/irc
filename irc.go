@@ -30,6 +30,7 @@ type Message struct {
 	// Prefix may be blank. It's optional.
 	Prefix string
 
+	// Command is the IRC command. For example, PRIVMSG. It may be a numeric.
 	Command string
 
 	// There are at most 15 parameters.

@@ -1,4 +1,5 @@
-// Package irc implements parsing and encoding of IRC protocol messages.
+// Package irc provides encoding and decoding of IRC protocol messages. It is
+// useful for implementing clients and servers.
 package irc
 
 import (
@@ -6,7 +7,8 @@ import (
 	"strings"
 )
 
-// ParseMessage parses a protocol message from the client/server.
+// ParseMessage parses a protocol message from the client/server. The message
+// should include the trailing CRLF.
 //
 // See RFC 1459/2812 section 2.3.1.
 func ParseMessage(line string) (Message, error) {
