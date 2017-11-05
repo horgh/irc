@@ -1,6 +1,8 @@
 # IRC
 
 [![GoDoc](https://godoc.org/github.com/horgh/irc?status.svg)](https://godoc.org/github.com/horgh/irc)
+[![Go Report
+Card](https://goreportcard.com/badge/github.com/horgh/irc)](https://goreportcard.com/report/github.com/horgh/irc)
 
 This package provides functionality for working with the IRC protocol.
 Specifically, it provides decoding and encoding of IRC messages.
