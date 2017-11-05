@@ -1,5 +1,7 @@
 # IRC
 
+[![Build
+Status](https://travis-ci.org/horgh/irc.svg)](https://travis-ci.org/horgh/irc)
 [![GoDoc](https://godoc.org/github.com/horgh/irc?status.svg)](https://godoc.org/github.com/horgh/irc)
 [![Go Report
 Card](https://goreportcard.com/badge/github.com/horgh/irc)](https://goreportcard.com/report/github.com/horgh/irc)
