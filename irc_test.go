@@ -665,6 +665,16 @@ func TestEncodeMessage(t *testing.T) {
 			"",
 			false,
 		},
+
+		{
+			Message{
+				Command: "PONG",
+				Prefix:  "test1.example.com",
+				Params:  []string{"test1.example.com", "11:03:01.554"},
+			},
+			":test1.example.com PONG test1.example.com 11:03:01.554\r\n",
+			true,
+		},
 	}
 
 	for _, test := range tests {
