@@ -1,0 +1,72 @@
+# IRC parser tests
+# validating hostnames
+
+# Written in 2015 by Daniel Oaks <daniel@danieloaks.net>
+#
+# To the extent possible under law, the author(s) have dedicated all copyright
+# and related and neighboring rights to this software to the public domain
+# worldwide. This software is distributed without any warranty.
+#
+# You should have received a copy of the CC0 Public Domain Dedication along
+# with this software. If not, see
+# <http://creativecommons.org/publicdomain/zero/1.0/>.
+
+# Use notes: These tests should be used on the server for your host-validating
+# code. Clients should accept whatever the server throws their way because
+# trying to validate hostnames the server gives you isn't sane -- vhosts
+# commonly contain weird chars, and oper masks can omit periods altogether and
+# include things like formatting characters.
+
+tests:
+  # host is the hostname string
+
+  # valid is whether the name should be considered valid
+
+  # valid hostnames
+  - host: "irc.example.com"
+    valid: true
+
+  - host: "i.coolguy.net"
+    valid: true
+
+  - host: "irc-srv.net.uk"
+    valid: true
+
+  - host: "iRC.CooLguY.NeT"
+    valid: true
+
+  # valid hostnames with digits
+  - host: "gsf.ds342.co.uk"
+    valid: true
+
+  - host: "324.net.uk"
+    valid: true
+
+  # valid hostnames with international encoding
+  - host: "xn--bcher-kva.ch"
+    valid: true
+
+  # # this should only validate after being transformed into punycode as above
+  # - host: "irc.Bücher.ch"
+  #   valid: false
+
+  # invalid hostnames
+  - host: "-lol-.net.uk"
+    valid: false
+
+  - host: "-lol.net.uk"
+    valid: false
+
+  - host: "_irc._sctp.lol.net.uk"
+    valid: false
+
+  # technically valid hostnames but not allowed as IRC hostnames (server names or client hostnames)
+  - host: "irc"
+    valid: false
+
+  - host: "com"
+    valid: false
+
+  # empty hostname
+  - host: ""
+    valid: false
