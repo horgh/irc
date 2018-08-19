@@ -1,0 +1,9 @@
+{
+  "Disable": [
+    "goconst",
+    "gocyclo",
+    "vetshadow"
+  ],
+  "Skip": ["irc-parser-tests"],
+  "Vendor": true
+}
